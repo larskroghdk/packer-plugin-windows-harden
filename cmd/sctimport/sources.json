@@ -1,0 +1,162 @@
+[
+  {
+    "id": "ws2019-member",
+    "name": "Windows Server 2019 Security Baseline (Member Server)",
+    "version": "1809-FINAL",
+    "zip": "Windows 10 Version 1809 and Windows Server 2019 Security Baseline.zip",
+    "url": "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%2010%20Version%201809%20and%20Windows%20Server%202019%20Security%20Baseline.zip",
+    "sha256": "575ddaf39ef364ea6da678e22b0a988ea316eb240f73fbf618092a02647245bc",
+    "policy_rules": "Documentation/MSFT-WS2019-MemberServer-FINAL.PolicyRules",
+    "workbook": "Documentation/MS Security Baseline Windows 10 v1809 and Server 2019.xlsx",
+    "delta_inf": "Local_Script/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Local_Script/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "server",
+    "builds": [17763],
+    "components": [
+      "MSFT Windows Server 2019 - Member Server",
+      "MSFT Windows 10 1809 and Server 2019 - Domain Security",
+      "MSFT Windows 10 1809 and Server 2019 - Defender Antivirus",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 10 1809 and Server 2019 Member Server - Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."}
+    ],
+    "excluded_settings": []
+  },
+  {
+    "id": "ws2022",
+    "name": "Windows Server 2022 Security Baseline (Member Server)",
+    "version": "FINAL",
+    "zip": "Windows Server 2022 Security Baseline.zip",
+    "url": "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%20Server%202022%20Security%20Baseline.zip",
+    "sha256": "49590cc694626d171fc934fafea6494f13ecd3843086704b7a5b98355909b8e0",
+    "policy_rules": "Documentation/MSFT-WS2022-FINAL.PolicyRules",
+    "workbook": "Documentation/FINAL-MS Security Baseline Windows Server 2022.xlsx",
+    "delta_inf": "Scripts/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Scripts/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "server",
+    "builds": [20348],
+    "components": [
+      "MSFT Windows Server 2022 - Member Server",
+      "MSFT Windows Server 2022 - Domain Security",
+      "MSFT Windows Server 2022 - Defender Antivirus",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows Server 2022 - Member Server Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."},
+      {"item": "MSFT Windows Server 2022 - Domain Controller", "reason": "Domain controllers are not supported."},
+      {"item": "MSFT Windows Server 2022 - Domain Controller Virtualization Based Security", "reason": "Domain controllers are not supported."}
+    ],
+    "excluded_settings": []
+  },
+  {
+    "id": "ws2025-2602",
+    "name": "Windows Server 2025 Security Baseline (Member Server)",
+    "version": "2602",
+    "zip": "Windows Server 2025 Security Baseline - 2602.zip",
+    "url": "https://download.microsoft.com/download/e99be2d2-e077-4986-a06b-6078051999dd/Windows%20Server%202025%20Security%20Baseline%20-%202602.zip",
+    "sha256": "a66dffbe2622c3c4dd70e44a7f2080f362fb2d6f9208c50678671cbb046a286f",
+    "policy_rules": "Documentation/MSFT-WS2025-v2602.PolicyRules",
+    "workbook": "Documentation/MS Security Baseline Windows Server 2025 v2602.xlsx",
+    "delta_inf": "Scripts/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Scripts/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "server",
+    "builds": [26100],
+    "components": [
+      "MSFT Windows Server 2025 v2602 - Member Server",
+      "MSFT Windows Server 2025 v2602 - Domain Security",
+      "MSFT Windows Server 2025 v2602 - Defender Antivirus",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows Server 2025 v2602 - Member Server Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."},
+      {"item": "MSFT Windows Server 2025 v2602 - Domain Controller", "reason": "Domain controllers are not supported."},
+      {"item": "MSFT Windows Server 2025 v2602 - Domain Controller Virtualization Based Security", "reason": "Domain controllers are not supported."}
+    ],
+    "excluded_settings": []
+  },
+  {
+    "id": "win11-24h2",
+    "name": "Windows 11 version 24H2 Security Baseline",
+    "version": "24H2",
+    "zip": "Windows 11 v24H2 Security Baseline.zip",
+    "url": "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/Windows%2011%20v24H2%20Security%20Baseline.zip",
+    "sha256": "b75439a231c64edaccaad16a16268d199f56ce78273104e117d893f82cf174a5",
+    "policy_rules": "Documentation/MSFT-Win11-v24H2.PolicyRules",
+    "workbook": "Documentation/MS Security Baseline Windows 11 v24H2.xlsx",
+    "delta_inf": "Scripts/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Scripts/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "workstation",
+    "builds": [26100],
+    "components": [
+      "MSFT Windows 11 24H2 - Computer",
+      "MSFT Windows 11 24H2 - Domain Security",
+      "MSFT Windows 11 24H2 - Defender Antivirus",
+      "MSFT Windows 11 24H2 - BitLocker",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 24H2 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 24H2 - Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."}
+    ],
+    "excluded_settings": []
+  },
+  {
+    "id": "win11-25h2",
+    "name": "Windows 11 version 25H2 Security Baseline",
+    "version": "25H2",
+    "zip": "Windows 11 v25H2 Security Baseline.zip",
+    "url": "https://download.microsoft.com/download/e99be2d2-e077-4986-a06b-6078051999dd/Windows%2011%20v25H2%20Security%20Baseline.zip",
+    "sha256": "3517a53030a3e437c9fe00c04274d80965d3527a8eb0514520cba75023c376f7",
+    "policy_rules": "Documentation/MSFT-Win11-v25H2.PolicyRules",
+    "workbook": "Documentation/MS Security Baseline Windows 11 v25H2.xlsx",
+    "delta_inf": "Scripts/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Scripts/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "workstation",
+    "builds": [26200],
+    "components": [
+      "MSFT Windows 11 25H2 - Computer",
+      "MSFT Windows 11 25H2 - Domain Security",
+      "MSFT Windows 11 25H2 - Defender Antivirus",
+      "MSFT Windows 11 25H2 - BitLocker",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 25H2 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 25H2 - Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."}
+    ],
+    "excluded_settings": []
+  },
+  {
+    "id": "win11-26h2",
+    "name": "Windows 11 version 26H2 Security Baseline",
+    "version": "26H2-v2",
+    "zip": "Windows 11 v26H2 Security Baseline v2.zip",
+    "url": "https://download.microsoft.com/download/e99be2d2-e077-4986-a06b-6078051999dd/Windows%2011%20v26H2%20Security%20Baseline%20v2.zip",
+    "sha256": "369f8dad02485b3fc20be089649a29eb6432a7d0f63cef75addace9685e45d18",
+    "policy_rules": "Documentation/MSFT-Win11-v26H2.PolicyRules",
+    "workbook": "Documentation/MS Security Baseline Windows 11 v26H2.xlsx",
+    "delta_inf": "Scripts/ConfigFiles/DeltaForNonDomainJoined.inf",
+    "delta_txt": "Scripts/ConfigFiles/DeltaForNonDomainJoined.txt",
+    "product_type": "workstation",
+    "builds": [26300],
+    "components": [
+      "MSFT Windows 11 26H2 - Computer",
+      "MSFT Windows 11 26H2 - Domain Security",
+      "MSFT Windows 11 26H2 - Defender Antivirus",
+      "MSFT Windows 11 26H2 - BitLocker",
+      "MSFT Internet Explorer 11 - Computer"
+    ],
+    "excluded_components": [
+      {"item": "MSFT Internet Explorer 11 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 26H2 - User", "reason": "User Configuration policy; this provisioner configures computer policy only."},
+      {"item": "MSFT Windows 11 26H2 - Credential Guard", "reason": "Requires virtualization-based security support in the virtual hardware (Secure Boot, TPM, virtualization extensions) and a reboot; not applied automatically. Configure it through Group Policy after deployment on capable hosts."}
+    ],
+    "excluded_settings": []
+  }
+]

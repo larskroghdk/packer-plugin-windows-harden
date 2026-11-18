@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a new baseline, protection rule, or option.
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - New or updated Microsoft baseline
+        - WinRM protection rule
+        - Configuration option
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you're trying to do, and why the plugin doesn't support it today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How it could work. For a baseline, link the Microsoft Security Compliance Toolkit download. For a protection rule, name the setting ID and how it breaks the Packer session.

@@ -1,0 +1,7 @@
+/dist/
+/packer-plugin-windows-harden
+/packer-plugin-windows-harden.exe
+windows-harden-report-*.json
+reports/
+testResults.xml
+examples/local/local.pkrvars.hcl
