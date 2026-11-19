@@ -4,7 +4,7 @@
 
 ## 🧰 Setup
 
-You need Go 1.24+, `staticcheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for the Pester run. `make init` installs the Go tools.
+You need Go 1.26+, `staticcheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for the Pester run. `make init` installs the Go tools.
 
 ⚠️ `make` isn't on the default Git Bash PATH on Windows. If it's missing, run the recipe lines from the [Makefile](Makefile) directly.
 
