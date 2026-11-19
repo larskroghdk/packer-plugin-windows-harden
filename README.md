@@ -48,7 +48,7 @@ build {
 
 ## 🔧 Development
 
-Requires Go 1.24+, `staticcheck`, `pwsh` with PSScriptAnalyzer and Pester 5, and `packer-sdc` for `make generate`.
+Requires Go 1.26+, `staticcheck`, `pwsh` with PSScriptAnalyzer and Pester 5, and `packer-sdc` for `make generate`.
 
 ```sh
 make check      # lint + typecheck + test
@@ -57,6 +57,6 @@ make generate   # regenerate provisioner/config.hcl2spec.go
 make baselines DOWNLOADS=<dir>   # regenerate baseline data from SCT zips
 ```
 
-📦 Releases are published by pushing a `v*` tag (see [.github/workflows/release.yml](.github/workflows/release.yml)).
+📦 Releases are published by pushing a `v*` tag: the [build workflow](.github/workflows/build.yml) runs [ci-release.sh](ci-release.sh), which runs `make release` for tags and `make release-snapshot` otherwise.
 
 🤖 Contributor and agent guidance: [AGENTS.md](AGENTS.md) and [INVARIANTS.md](INVARIANTS.md). Task procedures: [update-baseline](.agents/skills/update-baseline/SKILL.md) and [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md).
