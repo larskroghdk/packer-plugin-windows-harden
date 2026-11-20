@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -eu
 
 problems=$(find guest test -name '*.ps1' -exec awk '
