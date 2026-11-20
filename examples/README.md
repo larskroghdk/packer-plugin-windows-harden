@@ -32,16 +32,29 @@ packer build -var-file=ws2025-2602.pkrvars.hcl -var-file=site.pkrvars.hcl .
 
 ## 🏠 Local test
 
-[local](local/) runs a locally built plugin against a Windows machine that already exists and has WinRM enabled, such as a Hyper-V VM. It uses the `null` builder, so it creates no image. It defaults to `dry_run = true`, which plans and writes the report without changing anything.
+[local](local/) runs a locally built plugin against a Windows machine that already exists and has WinRM enabled, such as a Hyper-V VM. It uses the `null` builder, so it creates no image. It defaults to `dry_run = true`, which plans and writes the report without applying baseline settings.
 
-```sh
-go build -o packer-plugin-windows-harden.exe .
-packer plugins install --path packer-plugin-windows-harden.exe github.com/larskroghdk/windows-harden
-cd examples/local
-cp local.pkrvars.hcl.example local.pkrvars.hcl
-packer build -var-file=local.pkrvars.hcl .
+The computer running [Test-Local.ps1](local/Test-Local.ps1) needs PowerShell 5.1 or later, Go 1.26+ and Packer on PATH. The target must run a [supported OS](../README.md#-supported-operating-systems), allow WinRM connections from that computer and provide an elevated administrator session in 64-bit Windows PowerShell. The script does not create a VM or configure WinRM. Run the following setup commands from the repository root:
+
+```powershell
+Copy-Item examples/local/local.pkrvars.hcl.example examples/local/local.pkrvars.hcl
+notepad examples/local/local.pkrvars.hcl
+./examples/local/Test-Local.ps1
 ```
 
-The template has no `required_plugins` block, so Packer uses the installed development build (`0.1.0-dev`). Set `host` and `password` in `local.pkrvars.hcl`, which git ignores. The report is written to `reports/local.json`.
+Run the script from PowerShell with Go and Packer on PATH. Set `host`, `username` and `password` in `local.pkrvars.hcl`, which git ignores. The script builds and installs the development plugin (`0.1.0-dev`) into an isolated `dist/local-test/plugins` directory and validates the template before running it. It restores the caller's plugin path and working directory afterward. The report is written to `examples/local/reports/local.json`; failed settings cause the script to fail.
 
-⚠️ With `dry_run = false` the plugin hardens the target machine and restarts it if needed. Use a disposable VM or take a checkpoint first. The defaults connect with NTLM over HTTP on port 5985. Set `use_ssl = true` for HTTPS.
+Use `-ValidateOnly` to check the local build and template without connecting to a target. Use `-VarFile <path>` for another `.hcl` or `.json` variable file. Relative variable-file paths are resolved from your current directory.
+
+| Command from the repository root | Checks |
+| --- | --- |
+| `./examples/local/Test-Local.ps1 -ValidateOnly` | Builds and installs the plugin and validates HCL; no target connection or report. The copied example values can be used unchanged. |
+| `./examples/local/Test-Local.ps1` | Connects to the configured target, detects state, plans changes and writes the report without applying baseline settings. |
+| `./examples/local/Test-Local.ps1 -Apply` | Applies hardening, verifies results and restarts the target if required. |
+| `./examples/local/Test-Local.ps1 -VarFile C:/test/target.pkrvars.hcl` | Runs a dry-run inspection using another target configuration. |
+
+The script forces a dry run even when the variable file sets `dry_run = false`. Pass `-Apply` to harden the target machine and restart it if needed. Use a disposable VM or take a checkpoint first. A successful dry run verifies inspection and planning; run with `-Apply` to test application and post-apply verification. The defaults connect with NTLM over HTTP on port 5985. Set `use_ssl = true` for HTTPS.
+
+Inspect `summary`, `compliance`, `connectivity` and `deferred_plan` in the [JSON report](../docs/report.md). A successful script run does not mean every setting is compliant: a dry run can contain pending changes, and compatibility mode can defer settings to preserve WinRM. The script fails if a command fails, the expected report is missing or the report contains failed settings. Reports may also exist after a failed Packer run; check their timestamps before using them.
+
+If the variable file is missing, copy the example as shown above; Packer cannot load the `.hcl.example` filename directly. For connection or elevation errors, check the target's WinRM listener, firewall and account permissions against the [build requirements](../docs/configuration.md#-requirements-on-the-build). `-ValidateOnly` cannot verify any of those guest requirements.

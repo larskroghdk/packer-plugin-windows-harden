@@ -1,7 +1,7 @@
 name: Build
 on: [push, pull_request]
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     name: Build
@@ -19,7 +19,7 @@ jobs:
       - name: Set up msys2
         uses: msys2/setup-msys2@v2
         with:
-          install: make mingw-w64-x86_64-jq
+          install: make tar zip unzip mingw-w64-x86_64-jq
           path-type: inherit
       - name: Install PowerShell test tools
         shell: pwsh
@@ -36,8 +36,23 @@ jobs:
         run: msys2 -c 'make generate-check'
       - name: Check
         run: msys2 -c 'make check'
-      - name: Build
-        run: msys2 -c 'make build'
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Build release artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+        run: |
+          msys2 -c 'ln -s /c/Users/runneradmin/.gnupg ~/.gnupg'
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            msys2 -c 'make release'
+          } else {
+            msys2 -c 'make release-snapshot'
+          }
       - name: Archive
         uses: actions/upload-artifact@v7
         with:
