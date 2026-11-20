@@ -1,7 +1,7 @@
 name: Build
 on: [push, pull_request]
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     name: Build
@@ -19,23 +19,28 @@ jobs:
       - name: Set up msys2
         uses: msys2/setup-msys2@v2
         with:
-          install: make tar zip unzip mingw-w64-x86_64-jq
+          install: make mingw-w64-x86_64-jq
           path-type: inherit
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Install PowerShell test tools
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -RequiredVersion 1.22.0 -Scope CurrentUser -Force
+      - name: Install Pester
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-PackageProvider NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force | Out-Null
+          Install-Module Pester -RequiredVersion 5.6.1 -Scope CurrentUser -Force -SkipPublisherCheck
+      - name: Install Go tools
+        run: msys2 -c 'make init'
+      - name: Check generated configuration
+        run: msys2 -c 'make generate-check'
+      - name: Check
+        run: msys2 -c 'make check'
       - name: Build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: msys2 ./ci-release.sh
+        run: msys2 -c 'make build'
       - name: Archive
         uses: actions/upload-artifact@v7
         with:
           name: artifacts
-          path: |
-            dist/
-            !dist/*/*
+          path: dist/
+          if-no-files-found: error
