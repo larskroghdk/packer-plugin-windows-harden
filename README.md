@@ -52,11 +52,13 @@ Requires Go 1.26+, `staticcheck`, `pwsh` with PSScriptAnalyzer and Pester 5, and
 
 ```sh
 make check      # lint + typecheck + test
-make build      # build ./packer-plugin-windows-harden
+make build      # build a snapshot binary under dist/
 make generate   # regenerate provisioner/config.hcl2spec.go
 make baselines DOWNLOADS=<dir>   # regenerate baseline data from SCT zips
 ```
 
-📦 The [build workflow](.github/workflows/build.yml) checks generated configuration, runs `make check` and builds the plugin. Build artifacts are attached to each workflow run. The workflow does not publish releases. PowerShell modules are installed only as lint and test dependencies.
+For a local smoke test, use [examples/local/Test-Local.ps1](examples/local/Test-Local.ps1). It builds an isolated development plugin and runs the local template against an existing Windows WinRM target. See [local test setup and commands](examples/README.md#-local-test) for credentials, validation without a target, dry-run inspection and applying hardening.
+
+📦 The [build workflow](.github/workflows/build.yml) checks generated configuration and runs `make check`, then creates signed Packer plugin release artifacts. Pushing a `v*` tag publishes a draft GitHub release; other runs produce snapshot artifacts. PowerShell Gallery is used only to install lint and test dependencies; nothing is published there.
 
 🤖 Contributor and agent guidance: [AGENTS.md](AGENTS.md) and [INVARIANTS.md](INVARIANTS.md). Task procedures: [update-baseline](.agents/skills/update-baseline/SKILL.md) and [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md).

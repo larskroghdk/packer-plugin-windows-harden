@@ -11,7 +11,7 @@ PACKER             ?= packer
 DOWNLOADS          ?=
 API_VERSION         = $(shell go run . describe 2>/dev/null | jq -r .api_version)
 
-.PHONY: check lint fmt-check doccheck pslint hclfmt typecheck test test-go test-ps fmt generate generate-check baselines init build clean
+.PHONY: check lint fmt-check doccheck pslint hclfmt typecheck test test-go test-ps fmt generate generate-check baselines init build release-snapshot release clean
 
 check: lint typecheck test
 
@@ -72,6 +72,12 @@ $(PACKER_SDC):
 
 build: $(GORELEASER)
 	API_VERSION="$(API_VERSION)" $(GORELEASER) build --snapshot --skip=validate --clean --single-target
+
+release-snapshot: $(GORELEASER)
+	API_VERSION="$(API_VERSION)" $(GORELEASER) release --snapshot --skip=publish --clean
+
+release: $(GORELEASER)
+	API_VERSION="$(API_VERSION)" $(GORELEASER) release --clean
 
 clean:
 	rm -rf dist reports windows-harden-report-*.json
