@@ -57,6 +57,6 @@ make generate   # regenerate provisioner/config.hcl2spec.go
 make baselines DOWNLOADS=<dir>   # regenerate baseline data from SCT zips
 ```
 
-📦 Releases are published by pushing a `v*` tag: the [build workflow](.github/workflows/build.yml) runs [ci-release.sh](ci-release.sh), which runs `make release` for tags and `make release-snapshot` otherwise.
+📦 The [build workflow](.github/workflows/build.yml) checks generated configuration, runs `make check` and builds the plugin. Build artifacts are attached to each workflow run. The workflow does not publish releases. PowerShell modules are installed only as lint and test dependencies.
 
 🤖 Contributor and agent guidance: [AGENTS.md](AGENTS.md) and [INVARIANTS.md](INVARIANTS.md). Task procedures: [update-baseline](.agents/skills/update-baseline/SKILL.md) and [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md).
