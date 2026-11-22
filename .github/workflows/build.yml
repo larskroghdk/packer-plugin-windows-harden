@@ -1,8 +1,9 @@
 name: Build
+
 on: [push, pull_request]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -38,23 +39,8 @@ jobs:
         run: msys2 -c 'make generate-check'
       - name: Check
         run: msys2 -c 'make check'
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      - name: Build release artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          msys2 -c 'ln -s /c/Users/runneradmin/.gnupg ~/.gnupg'
-          if ($env:GITHUB_REF -like 'refs/tags/v*') {
-            msys2 -c 'make release'
-          } else {
-            msys2 -c 'make release-snapshot'
-          }
+      - name: Build snapshot artifacts
+        run: msys2 -c 'make release-snapshot'
       - name: Archive
         uses: actions/upload-artifact@v7
         with:

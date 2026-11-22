@@ -74,7 +74,7 @@ build: $(GORELEASER)
 	API_VERSION="$(API_VERSION)" $(GORELEASER) build --snapshot --skip=validate --clean --single-target
 
 release-snapshot: $(GORELEASER)
-	API_VERSION="$(API_VERSION)" $(GORELEASER) release --snapshot --skip=publish --clean
+	API_VERSION="$(API_VERSION)" $(GORELEASER) release --snapshot --skip=publish,sign --clean
 
 release: $(GORELEASER)
 	API_VERSION="$(API_VERSION)" $(GORELEASER) release --clean
