@@ -169,10 +169,10 @@ func (r ApplyResults) Get(id string) (ApplyResult, bool) {
 //
 // Returns:
 //   - ApplyResults: The results by setting ID.
-//   - error: The data is not valid JSON.
+//   - error: The data is not valid JSON or has missing or duplicate IDs.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func ParseApplyResults(data []byte) (ApplyResults, error) {
 	var res struct {
 		Items []ApplyResult `json:"items"`
@@ -182,7 +182,11 @@ func ParseApplyResults(data []byte) (ApplyResults, error) {
 	}
 	out := make(ApplyResults, len(res.Items))
 	for _, r := range res.Items {
-		out[strings.ToLower(r.ID)] = r
+		key := strings.ToLower(r.ID)
+		if _, exists := out[key]; exists || key == "" {
+			return nil, fmt.Errorf("apply result has a missing or duplicate setting ID %q", r.ID)
+		}
+		out[key] = r
 	}
 	return out, nil
 }

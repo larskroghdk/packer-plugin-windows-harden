@@ -553,7 +553,7 @@ func (g *generator) templateRegistry(component, key, value string) (baseline.Set
 //     does not match a baseline setting.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (g *generator) deltaOverrides(p *sctPackage, spec sourceSpec) ([]baseline.Setting, error) {
 	const component = "DeltaForNonDomainJoined (Microsoft baseline local install script)"
 	var out []baseline.Setting
@@ -561,7 +561,11 @@ func (g *generator) deltaOverrides(p *sctPackage, spec sourceSpec) ([]baseline.S
 	if err != nil {
 		return nil, err
 	}
-	for section, lines := range parseINF(decodeText(infData)) {
+	sections, err := parseINF(decodeText(infData))
+	if err != nil {
+		return nil, err
+	}
+	for section, lines := range sections {
 		switch section {
 		case "Unicode", "Version", "Profile Description":
 		case "Registry Values":

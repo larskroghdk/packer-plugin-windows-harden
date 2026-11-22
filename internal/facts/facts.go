@@ -199,12 +199,14 @@ func firewallProfileForCategory(category string) string {
 //   - fromConnections: Whether the set comes from the WinRM connections.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (f *Facts) ActiveFirewallProfiles() (profiles map[string]bool, fromConnections bool) {
 	out := map[string]bool{}
 	for _, c := range f.WinRMConnections {
 		if p := firewallProfileForCategory(c.NetworkCategory); p != "" {
 			out[p] = true
+		} else {
+			return map[string]bool{"Domain": true, "Private": true, "Public": true}, false
 		}
 	}
 	if len(out) > 0 {

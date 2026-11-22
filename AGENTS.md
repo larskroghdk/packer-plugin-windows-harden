@@ -32,7 +32,7 @@ A Packer provisioner plugin that applies Microsoft security baselines to Windows
 ## Repo-wide footguns
 
 - `make` is not on the default Windows/Git Bash PATH. If it's missing, run the recipe lines from the [Makefile](Makefile) directly.
-- There are no Go tests for `provisioner/` or `internal/report/`, and `test/integration/` is empty. A green `make check` doesn't cover orchestration or a real WinRM build. Guest-script test coverage is described in [guest/AGENTS.md](guest/AGENTS.md).
+- Go tests cover planning, reports and selected orchestration paths through a simulated communicator. They do not cover a real WinRM build. Guest-script test coverage is described in [guest/AGENTS.md](guest/AGENTS.md).
 - PSScriptAnalyzer runs at `Error` severity. Existing warnings, such as missing `ShouldProcess`, are known and accepted.
 - Lifecycle dates in [internal/facts/lifecycle.go](internal/facts/lifecycle.go) also cover builds that have no baseline (Server 2016, Windows 10, Windows 11 22H2/23H2). Those builds classify as `supported` and then fail at baseline selection. That is intended.
 

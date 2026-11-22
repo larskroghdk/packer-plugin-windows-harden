@@ -13,9 +13,49 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
+
+function New-SWGuardClaim {
+    <#
+    .SYNOPSIS
+        Atomically claims a guard snapshot for rollback or disarming.
+
+    .DESCRIPTION
+        Creates a sidecar file with CreateNew so that rollback and disarming cannot both
+        win. The file remains until the plugin removes its working directory.
+
+    .PARAMETER SnapshotPath
+        The guard snapshot path shared by the scheduled rollback and disarm request.
+
+    .EXAMPLE
+        New-SWGuardClaim -SnapshotPath 'C:\Windows\Temp\sw\guard-snapshot.json'
+
+    .OUTPUTS
+        System.Boolean. True for the first caller, false for later callers.
+
+    .NOTES
+        Author  : Lars Krogh
+        Version : 1.0.0
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory)]
+        [string]$SnapshotPath
+    )
+    $claimPath = "$SnapshotPath.claim"
+    try {
+        $claim = [IO.File]::Open($claimPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        $claim.Dispose()
+        $true
+    }
+    catch [IO.IOException] {
+        if (-not [IO.File]::Exists($claimPath)) { throw }
+        $false
+    }
+}
 
 function Register-SWGuardTask {
     <#

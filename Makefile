@@ -1,9 +1,11 @@
 GOPATH             := $(shell go env GOPATH | tr '\\' '/')
 GORELEASER_VERSION := 2.18.2
 STATICCHECK_VERSION := 2025.1.1
+GOVULNCHECK_VERSION := 1.10.0
 PACKER_SDC_VERSION := $(shell go list -m -f '{{.Version}}' github.com/hashicorp/packer-plugin-sdk)
 GORELEASER         ?= $(GOPATH)/bin/goreleaser
 STATICCHECK        ?= $(GOPATH)/bin/staticcheck
+GOVULNCHECK        ?= $(GOPATH)/bin/govulncheck
 PACKER_SDC         ?= $(GOPATH)/bin/packer-sdc
 PWSH               ?= pwsh
 PESTER_SHELL       ?= powershell.exe
@@ -11,11 +13,11 @@ PACKER             ?= packer
 DOWNLOADS          ?=
 API_VERSION         = $(shell go run . describe 2>/dev/null | jq -r .api_version)
 
-.PHONY: check lint fmt-check doccheck pslint hclfmt typecheck test test-go test-ps fmt generate generate-check baselines init build release-snapshot release clean
+.PHONY: check lint fmt-check doccheck pslint hclfmt typecheck vulncheck test test-go test-ps fmt generate generate-check baselines init build release-snapshot release clean
 
-check: lint typecheck test
+check: lint typecheck vulncheck test
 
-lint: fmt-check doccheck pslint hclfmt
+lint: fmt-check doccheck pslint hclfmt $(STATICCHECK)
 	$(STATICCHECK) ./...
 
 fmt-check:
@@ -40,6 +42,9 @@ test: test-go test-ps
 test-go:
 	go test ./...
 
+vulncheck: $(GOVULNCHECK)
+	$(GOVULNCHECK) ./...
+
 test-ps:
 	$(PESTER_SHELL) -NoProfile -ExecutionPolicy Bypass -Command '$$c = New-PesterConfiguration; $$c.Run.Path = "test/pester"; $$c.Run.Exit = $$true; $$c.Output.Verbosity = "Detailed"; Invoke-Pester -Configuration $$c'
 
@@ -58,14 +63,19 @@ baselines:
 	@if [ -z "$(DOWNLOADS)" ]; then echo "usage: make baselines DOWNLOADS=<dir with SCT zips>"; exit 1; fi
 	go run ./cmd/sctimport -downloads "$(DOWNLOADS)" -out internal/baseline/data
 
-init: $(GORELEASER) $(STATICCHECK) $(PACKER_SDC)
+init: $(GORELEASER) $(STATICCHECK) $(GOVULNCHECK) $(PACKER_SDC)
 	go mod download
+
+$(GORELEASER) $(STATICCHECK) $(GOVULNCHECK) $(PACKER_SDC): Makefile go.mod
 
 $(GORELEASER):
 	go install github.com/goreleaser/goreleaser/v2@v$(GORELEASER_VERSION)
 
 $(STATICCHECK):
 	go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+
+$(GOVULNCHECK):
+	go install golang.org/x/vuln/cmd/govulncheck@v$(GOVULNCHECK_VERSION)
 
 $(PACKER_SDC):
 	go install github.com/hashicorp/packer-plugin-sdk/cmd/packer-sdc@$(PACKER_SDC_VERSION)

@@ -127,9 +127,9 @@ func Classify(o OS, now time.Time) Classification {
 // day of support, and StatusEndOfSupport after that.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func lifecycleStatus(r Release, now time.Time) Classification {
-	if now.After(r.EndOfSupport.Add(24 * time.Hour)) {
+	if !now.Before(r.EndOfSupport.Add(24 * time.Hour)) {
 		return Classification{
 			Release: r,
 			Status:  StatusEndOfSupport,

@@ -18,7 +18,7 @@ const restartCommand = `shutdown.exe /r /f /t 5 /c "packer-plugin-windows-harden
 //     restart_timeout, WinRM regressed, or re-inspection failed.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *run) restartAndReverify(ctx context.Context) error {
 	before, err := r.probe(ctx)
 	if err != nil {
@@ -34,9 +34,6 @@ func (r *run) restartAndReverify(ctx context.Context) error {
 		return fmt.Errorf("the machine did not come back over WinRM within %s: %w", r.cfg.RestartTimeout, err)
 	}
 	r.reboot.Performed = true
-	if err := r.remote.install(ctx); err != nil {
-		return err
-	}
 	if err := r.checkConnectivity(ctx, "after restart"); err != nil {
 		return err
 	}

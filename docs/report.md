@@ -25,7 +25,7 @@ Every run writes a JSON report to `report_path` and prints a summary, including 
 | --- | --- |
 | ✅ `compliant` | Already matched the baseline |
 | 🛡️ `hardened` | Changed, then verified by re-inspection |
-| ⏳ `pending` | Not compliant and not changed (dry run only) |
+| ⏳ `pending` | Not compliant and not verified (dry run or an interrupted run) |
 | ⏸️ `deferred` | Not applied, because it would break the Packer WinRM session. `reason` says why. |
 | ⏭️ `skipped` | Matched an `exclude` pattern |
 | ➖ `not_applicable` | The configured object doesn't exist, such as a service that isn't installed |
@@ -42,3 +42,5 @@ Each entry has `id`, `kind`, `description`, `component`, `status`, `expected`, a
 | 🟢 `compliant` | Every enforced setting is compliant |
 
 `compliance.full_baseline` is `true` only when the status is `compliant` and the baseline has no excluded components or settings. `compliance.reasons` lists everything that kept the result from being fully compliant.
+
+The optional top-level `error` field records a terminal provisioning failure, including failures after settings were verified. Such a report is always `non_compliant`.

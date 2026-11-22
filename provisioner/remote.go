@@ -13,11 +13,12 @@ import (
 )
 
 type remote struct {
-	comm packer.Communicator
-	ui   packer.Ui
-	id   string
-	dir  string
-	seq  int
+	comm       packer.Communicator
+	ui         packer.Ui
+	id         string
+	dir        string
+	seq        int
+	guardArmed bool
 }
 
 // newRemote prepares guest access for one run. The working directory below
@@ -44,15 +45,17 @@ func powershellCommand(args string) string {
 	return `powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass ` + args
 }
 
-// install creates the working directory and uploads every guest script.
+// install creates an administrator-only working directory and uploads every
+// guest script. The guest uses Windows PowerShell 5.1's DirectorySecurity API
+// so the SYSTEM rollback task never reads scripts writable by ordinary users.
 //
 // Returns:
 //   - error: The directory cannot be created or a script cannot be uploaded.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *remote) install(ctx context.Context) error {
-	create := powershellCommand(fmt.Sprintf(`-Command "$ErrorActionPreference = 'Stop'; $null = New-Item -ItemType Directory -Force -Path '%s'"`, r.dir))
+	create := powershellCommand(fmt.Sprintf(`-Command "$ErrorActionPreference = 'Stop'; $acl = New-Object System.Security.AccessControl.DirectorySecurity; $acl.SetAccessRuleProtection($true, $false); foreach ($id in 'S-1-5-18', 'S-1-5-32-544') { $sid = [System.Security.Principal.SecurityIdentifier]$id; $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit, ObjectInherit', 'None', 'Allow'); $acl.AddAccessRule($rule) }; $null = [IO.Directory]::CreateDirectory('%s', $acl); Set-Acl -LiteralPath '%s' -AclObject $acl"`, r.dir, r.dir))
 	if err := r.exec(ctx, create); err != nil {
 		return fmt.Errorf("create guest working directory %s: %w", r.dir, err)
 	}
@@ -73,14 +76,17 @@ func (r *remote) install(ctx context.Context) error {
 	return nil
 }
 
-// cleanup removes the working directory and everything in it.
+// cleanup removes the working directory unless an armed guard still needs it.
 //
 // Returns:
 //   - error: The command failed.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *remote) cleanup(ctx context.Context) error {
+	if r.guardArmed {
+		return fmt.Errorf("the connectivity guard may still be armed; preserving its scripts and snapshot")
+	}
 	cmd := powershellCommand(fmt.Sprintf(`-Command "$ErrorActionPreference = 'Stop'; Remove-Item -LiteralPath '%s' -Recurse -Force"`, r.dir))
 	return r.exec(ctx, cmd)
 }

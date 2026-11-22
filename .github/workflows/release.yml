@@ -8,7 +8,10 @@ permissions:
   contents: read
 
 jobs:
+  check:
+    uses: ./.github/workflows/build.yml
   release:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,14 +23,14 @@ jobs:
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
-      - name: Format, modules, test, vet and build
-        shell: pwsh
-        run: ./scripts/check.ps1
       - name: Determine Packer plugin API version
-        run: echo "API_VERSION=$(./bin/packer-plugin-windows-harden describe | jq -r '.api_version')" >> "$GITHUB_ENV"
+        run: |
+          go build -o bin/packer-plugin-windows-harden .
+          API_VERSION=$(./bin/packer-plugin-windows-harden describe | jq -er '.api_version | select(type == "string" and length > 0)')
+          echo "API_VERSION=$API_VERSION" >> "$GITHUB_ENV"
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}

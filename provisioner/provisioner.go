@@ -56,7 +56,8 @@ func (p *Provisioner) Prepare(raws ...any) error {
 }
 
 // Provision hardens the guest over comm. The report is written whether or not
-// the run succeeds, and the guest working directory is removed.
+// the run succeeds. The guest working directory is removed unless an armed
+// rollback guard still needs its scripts and snapshot.
 //
 // Parameters:
 //   - generatedData: Builder data. ConnType must be winrm, and an empty
@@ -66,7 +67,7 @@ func (p *Provisioner) Prepare(raws ...any) error {
 //   - error: The run failed, or the report could not be written.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.Communicator, generatedData map[string]any) error {
 	if connType, _ := generatedData["ConnType"].(string); connType != "" && connType != "winrm" {
 		return fmt.Errorf("windows-harden requires the WinRM communicator, the build uses %q", connType)
@@ -85,7 +86,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.C
 	if err := r.remote.cleanup(ctx); err != nil {
 		r.warn("could not remove the guest working directory %s: %v", r.remote.dir, err)
 	}
-	result := r.report()
+	result := r.report(runErr)
 	for _, line := range result.SummaryLines() {
 		ui.Say(line)
 	}
@@ -149,11 +150,11 @@ func (r *run) warn(format string, args ...any) {
 	r.ui.Error("Warning: " + msg)
 }
 
-// report builds the report from the run's current state.
+// report builds the report from the run's current state and terminal error.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
-func (r *run) report() *report.Report {
+// Version: 1.1.0
+func (r *run) report(runErr error) *report.Report {
 	return report.Build(report.Input{
 		Plugin:         "packer-plugin-windows-harden " + Version,
 		StartedAt:      r.started,
@@ -168,6 +169,7 @@ func (r *run) report() *report.Report {
 		Connectivity:   r.checks,
 		Reboot:         r.reboot,
 		Warnings:       r.warnings,
+		Error:          runErr,
 	})
 }
 
@@ -181,7 +183,7 @@ func (r *run) report() *report.Report {
 //     failed while fail_on_error is true.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *run) execute(ctx context.Context) error {
 	r.ui.Say("Uploading the windows-harden guest scripts...")
 	if err := r.remote.install(ctx); err != nil {
@@ -209,6 +211,9 @@ func (r *run) execute(ctx context.Context) error {
 	}
 	if r.cfg.DryRun {
 		r.ui.Say("Dry run: no changes were made.")
+		if failed := r.plan.Count(plan.StatusFailed); failed > 0 && r.cfg.failOnError() {
+			return fmt.Errorf("%d settings failed inspection (see the report)", failed)
+		}
 		return nil
 	}
 	if len(apply) > 0 {

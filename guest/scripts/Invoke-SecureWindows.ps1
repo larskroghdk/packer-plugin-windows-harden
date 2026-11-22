@@ -39,7 +39,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 [CmdletBinding()]
@@ -429,8 +429,7 @@ switch ($Action) {
         catch {
             $failure = $_.Exception.Message
         }
-        $os = Get-CimInstance
-        -ClassName Win32_OperatingSystem -ErrorAction Stop
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
         Write-SWResult -Result ([PSCustomObject]@{
                 winrm     = $winrm
                 session   = Get-SWSessionIdentity
@@ -460,13 +459,19 @@ switch ($Action) {
     }
     'DisarmGuard' {
         $request = Read-SWInput
-        $existed = Unregister-SWGuardTask -TaskName $request.task_name
+        $claimed = New-SWGuardClaim -SnapshotPath $request.snapshot_path
         $rolledBack = Test-Path -LiteralPath $request.result_path -PathType Leaf
+        if (-not $claimed -and -not $rolledBack) {
+            throw 'The guard rollback has started but has not finished; its files must be preserved'
+        }
+        $existed = Unregister-SWGuardTask -TaskName $request.task_name
         Write-SWResult -Result ([PSCustomObject]@{ existed = $existed; rolled_back = $rolledBack })
     }
     'Rollback' {
-        $snapshot = Read-SWInput
-        Write-SWResult -Result ([PSCustomObject]@{ items = @(Invoke-SWRollback -Items @($snapshot.items)) })
+        if (New-SWGuardClaim -SnapshotPath $InputPath) {
+            $snapshot = Read-SWInput
+            Write-SWResult -Result ([PSCustomObject]@{ items = @(Invoke-SWRollback -Items @($snapshot.items)) })
+        }
     }
 }
 exit 0

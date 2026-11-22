@@ -307,7 +307,7 @@ func TestProtectFirewall(t *testing.T) {
 // only for an empty password.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func TestProtectGuardAndBlankPassword(t *testing.T) {
 	lm := reg(`System\CurrentControlSet\Control\Lsa`, "LmCompatibilityLevel", "REG_DWORD", "5")
 	blank := reg(`System\CurrentControlSet\Control\Lsa`, "LimitBlankPasswordUse", "REG_DWORD", "1")
@@ -319,12 +319,78 @@ func TestProtectGuardAndBlankPassword(t *testing.T) {
 	if d := decide(t, f, nil, lm); d.Action != ActionApply {
 		t.Errorf("LmCompatibilityLevel without Negotiate: %v, want apply", d.Action)
 	}
+	f.WinRM = nil
+	if d := decide(t, f, nil, lm); d.Action != ActionDefer {
+		t.Errorf("LmCompatibilityLevel without WinRM facts: %v, want defer", d.Action)
+	}
 	if d := decide(t, f, nil, blank); d.Action != ActionApply {
 		t.Errorf("LimitBlankPasswordUse with a password: %v, want apply", d.Action)
 	}
 	d := Protect([]baseline.Setting{blank}, Context{Facts: f, EmptyPassword: true})[blank.ID]
 	if d.Action != ActionDefer {
 		t.Errorf("LimitBlankPasswordUse with an empty password: %v, want defer", d.Action)
+	}
+}
+
+// TestProtectUnknownUAC distinguishes absent Windows defaults from missing,
+// failed, or mistyped inspections of FilterAdministratorToken.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestProtectUnknownUAC(t *testing.T) {
+	lua := reg(`Software\Microsoft\Windows\CurrentVersion\Policies\System`, "EnableLUA", baseline.RegDWORD, "1")
+	filter := baseline.RegistryID(lua.Registry.Path, "FilterAdministratorToken")
+	for _, st := range []State{
+		{ID: filter, Error: ptr("access denied")},
+		{ID: filter, Present: true, Type: ptr(baseline.RegSZ), Value: ptr("0")},
+		{ID: filter, Present: true, Type: ptr(baseline.RegDWORD), Value: ptr("invalid")},
+	} {
+		if d := decide(t, packerFacts(), current(st), lua); d.Action != ActionDefer {
+			t.Fatalf("unknown UAC state %+v: %v", st, d)
+		}
+	}
+	if d := decide(t, packerFacts(), current(absent(filter)), lua); d.Action != ActionApply {
+		t.Fatalf("absent UAC value: %v", d)
+	}
+	if d := decide(t, packerFacts(), nil, lua); d.Action != ActionDefer {
+		t.Fatalf("missing UAC state: %v", d)
+	}
+}
+
+// TestCompareRejectsIncompleteValues prevents missing or errored values from
+// matching empty strings or empty user-right assignments.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestCompareRejectsIncompleteValues(t *testing.T) {
+	setting := reg(`Software\X`, "Empty", baseline.RegSZ, "")
+	if got := Compare(setting, State{Present: true, Type: ptr(baseline.RegSZ)}); got != Mismatch {
+		t.Fatalf("missing value = %v", got)
+	}
+	if got := Compare(right("SeNetworkLogonRight"), State{Present: true}); got != Mismatch {
+		t.Fatalf("missing right assignment = %v", got)
+	}
+	if got := Compare(reg(`Software\X`, "Gone", baseline.RegAbsent, ""), State{Error: ptr("denied")}); got != Mismatch {
+		t.Fatalf("unreadable value = %v", got)
+	}
+	if got := Compare(right("SeNetworkLogonRight", "S-1-5-32-544"), State{Present: true, Value: ptr("S-1-5-32-544,S-1-5-32-544")}); got != Match {
+		t.Fatalf("duplicate SID in set = %v", got)
+	}
+}
+
+// TestResultParsersRejectAmbiguousIDs ensures duplicate and empty IDs cannot
+// replace failed results with successful ones during decoding.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestResultParsersRejectAmbiguousIDs(t *testing.T) {
+	for _, data := range []string{`{"items":[{"id":"A"},{"id":"a"}]}`, `{"items":[{}]}`} {
+		if _, err := ParseStates([]byte(data)); err == nil {
+			t.Fatalf("accepted inspect response %s", data)
+		}
+		if _, err := ParseApplyResults([]byte(data)); err == nil {
+			t.Fatalf("accepted apply response %s", data)
+		}
 	}
 }
 

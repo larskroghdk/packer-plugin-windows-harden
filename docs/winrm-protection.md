@@ -23,7 +23,7 @@ Some baseline settings would cut off the session Packer uses to finish the build
 | `SeDenyNetworkLogonRight` | It names a SID in the Packer session token |
 | `SeNetworkLogonRight` | It doesn't grant any SID in the Packer session token |
 
-🛡️ Two settings, `LmCompatibilityLevel` and `NtlmMinServerSec`, are **guarded** when Negotiate authentication is enabled. Whether the Packer client meets the new NTLM requirements can't be determined from the guest.
+🛡️ Two settings, `LmCompatibilityLevel` and `NtlmMinServerSec`, are **guarded** when Negotiate authentication is enabled. Whether the Packer client meets the new NTLM requirements can't be determined from the guest. Missing WinRM authentication facts defer these settings.
 
 ## 🛡️ Guarded apply
 
@@ -34,6 +34,8 @@ Some baseline settings would cut off the session Packer uses to finish the build
    - ↩️ If WinRM works but something regressed, the settings are rolled back immediately.
    - ⏰ If WinRM can't be reached, the plugin waits for the scheduled rollback, then reconnects within `restart_timeout`.
 4. 📝 Settings that were rolled back are reported as `deferred`, or as `failed` if the original value couldn't be confirmed.
+
+The guest working directory permits access only to SYSTEM and administrators. Rollback and disarming atomically claim the snapshot so they cannot both proceed. If rollback is already running, disarming fails rather than reporting a successful guard check. The plugin preserves the scripts and snapshot whenever the guard may still be armed.
 
 ## 🔁 After every change set
 

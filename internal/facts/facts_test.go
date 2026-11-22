@@ -6,6 +6,35 @@ import (
 	"time"
 )
 
+// TestLifecycleBoundary rejects the instant immediately after the final day
+// of support, including the midnight boundary itself.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestLifecycleBoundary(t *testing.T) {
+	r := Release{Name: "test", EndOfSupport: date("2026-11-22")}
+	end := r.EndOfSupport.Add(24 * time.Hour)
+	if c := lifecycleStatus(r, end.Add(-time.Nanosecond)); c.Status != StatusSupported {
+		t.Fatal("last supported instant rejected")
+	}
+	if c := lifecycleStatus(r, end); c.Status != StatusEndOfSupport {
+		t.Fatal("first unsupported instant accepted")
+	}
+}
+
+// TestUnknownConnectionProtectsEveryFirewallProfile prevents one identified
+// connection from hiding another connection whose network is unknown.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestUnknownConnectionProtectsEveryFirewallProfile(t *testing.T) {
+	f := Facts{WinRMConnections: []Connection{{NetworkCategory: "Private"}, {NetworkCategory: ""}}}
+	profiles, fromConnections := f.ActiveFirewallProfiles()
+	if len(profiles) != 3 || fromConnections {
+		t.Fatalf("profiles = %v, from connections = %t", profiles, fromConnections)
+	}
+}
+
 // TestParseSample decodes a captured Server Core Detect result and checks the
 // derived OS, session, firewall and transport facts.
 //

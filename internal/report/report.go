@@ -39,6 +39,7 @@ type Report struct {
 	Warnings      []string           `json:"warnings"`
 	Settings      []Setting          `json:"settings"`
 	DeferredPlan  []baseline.Setting `json:"deferred_plan"`
+	Error         string             `json:"error,omitempty"`
 }
 
 // System describes the guest as detected.
@@ -134,13 +135,14 @@ type Input struct {
 	Connectivity   []Check
 	Reboot         Reboot
 	Warnings       []string
+	Error          error
 }
 
 // Build assembles the report from what the run produced, including when the
 // run failed early.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func Build(in Input) *Report {
 	r := &Report{
 		SchemaVersion: SchemaVersion,
@@ -154,6 +156,9 @@ func Build(in Input) *Report {
 		Warnings:      in.Warnings,
 		Settings:      []Setting{},
 		DeferredPlan:  []baseline.Setting{},
+	}
+	if in.Error != nil {
+		r.Error = in.Error.Error()
 	}
 	if in.Facts != nil {
 		r.System = system(in.Facts, in.Classification)
@@ -245,9 +250,12 @@ func counts(p *plan.Plan) Counts {
 // settings make it partial. evaluated is false when no plan was built.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func compliance(r *Report, b *baseline.Baseline, evaluated bool) Compliance {
 	c := Compliance{Reasons: []string{}}
+	if r.Error != "" {
+		c.Reasons = append(c.Reasons, "provisioning failed: "+r.Error)
+	}
 	if !evaluated {
 		c.Status = ComplianceNonCompliant
 		c.Reasons = append(c.Reasons, "no baseline was evaluated")
@@ -274,7 +282,7 @@ func compliance(r *Report, b *baseline.Baseline, evaluated bool) Compliance {
 		}
 	}
 	switch {
-	case n.Failed > 0 || n.Pending > 0 || checkFailed:
+	case n.Failed > 0 || n.Pending > 0 || checkFailed || r.Error != "":
 		c.Status = ComplianceNonCompliant
 	case n.Deferred > 0 || n.Skipped > 0:
 		c.Status = CompliancePartial

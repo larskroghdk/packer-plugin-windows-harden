@@ -95,7 +95,7 @@ source "vsphere-iso" "windows" {
   vcenter_server      = var.vcenter_server
   username            = var.vcenter_username
   password            = var.vcenter_password
-  insecure_connection = true
+  insecure_connection = false
   datacenter          = var.datacenter
   cluster             = var.cluster
   datastore           = var.datastore
@@ -123,8 +123,8 @@ source "vsphere-iso" "windows" {
   ]
   cd_content = {
     "autounattend.xml" = templatefile("${path.root}/autounattend.pkrtpl.xml", {
-      admin_password = var.admin_password
-      image_name     = var.image_name
+      admin_password = replace(replace(replace(var.admin_password, "&", "&amp;"), "<", "&lt;"), ">", "&gt;")
+      image_name     = replace(replace(replace(var.image_name, "&", "&amp;"), "<", "&lt;"), ">", "&gt;")
     })
   }
   cd_label     = "unattend"

@@ -9,7 +9,7 @@
 | `mode` | string | `compatibility` | `compatibility` defers settings that would break the Packer WinRM session and applies the rest. `strict` fails before making any change if anything would be deferred. |
 | `dry_run` | bool | `false` | Detect, inspect and plan, then write the report without changing anything. Pending changes make the report `non_compliant`. |
 | `exclude` | list(string) | `[]` | Setting ID patterns to skip. They match case-insensitively, `*` matches any sequence, and backslashes are literal. A pattern made only of `*` is rejected. |
-| `fail_on_error` | bool | `true` | Fail the build when a setting fails to apply or verify. When `false`, failures are reported as warnings. |
+| `fail_on_error` | bool | `true` | Fail the build when a setting fails inspection, application or verification, including inspection during a dry run. When `false`, per-setting failures are recorded in the report and provisioning continues. Transport and orchestration failures still fail the build. |
 | `reboot_if_required` | bool | `false` | Restart after security policy changes, wait for WinRM, then re-verify every compliant and hardened setting. |
 | `restart_timeout` | duration | `30m` | How long to wait for WinRM after a restart, and after a guard rollback. Minimum `1m`. |
 | `report_path` | string | `windows-harden-report-<build name>.json` | Where the [report](report.md) is written on the machine running Packer. Missing directories are created. |

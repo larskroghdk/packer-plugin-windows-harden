@@ -1,6 +1,10 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -12,17 +16,19 @@ jobs:
     steps:
       - name: Configure git
         run: git config --global core.autocrlf false
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
-      - uses: hashicorp/setup-packer@v3
+      - uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789 # v3
       - name: Set up msys2
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
-          install: make tar zip unzip mingw-w64-x86_64-jq
+          msystem: UCRT64
+          install: make tar zip unzip mingw-w64-ucrt-x86_64-jq
           path-type: inherit
       - name: Install PowerShell test tools
         shell: pwsh
@@ -40,9 +46,11 @@ jobs:
       - name: Check
         run: msys2 -c 'make check'
       - name: Build snapshot artifacts
+        if: github.ref_type != 'tag'
         run: msys2 -c 'make release-snapshot'
       - name: Archive
-        uses: actions/upload-artifact@v7
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: artifacts
           path: dist/

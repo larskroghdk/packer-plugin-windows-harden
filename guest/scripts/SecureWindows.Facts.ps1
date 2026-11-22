@@ -14,7 +14,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 
@@ -356,9 +356,10 @@ function Get-SWSystemFacts {
 
     .DESCRIPTION
         Gathers operating system, domain, roles, session, WinRM, WinRM connections and
-        firewall state. If an optional part fails, that part is null and the error is added
-        to the errors list, so the plugin can treat it as unknown and fail closed. Operating
-        system and session failures stop the action.
+        firewall state. Optional collection failures are added to the errors list so the
+        plugin can treat them as unknown and fail closed. Object sections become null;
+        connection and role lists become empty arrays. Operating system and session failures
+        stop the action. Connections and roles remain arrays when only one item is collected.
 
     .EXAMPLE
         Write-SWResult -Result (Get-SWSystemFacts)
@@ -368,7 +369,7 @@ function Get-SWSystemFacts {
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.0.0
+        Version : 1.1.0
     #>
     [CmdletBinding()]
     param()
@@ -393,10 +394,10 @@ function Get-SWSystemFacts {
     [PSCustomObject]@{
         os                = $os
         domain            = & $collect 'domain' { Get-SWDomainMembership }
-        roles             = & $collect 'roles' { Get-SWInstalledRole -ProductType $os.product_type }
+        roles             = @(& $collect 'roles' { Get-SWInstalledRole -ProductType $os.product_type } | Where-Object { $null -ne $_ })
         session           = Get-SWSessionIdentity
         winrm             = $winrm
-        winrm_connections = $connections
+        winrm_connections = @($connections | Where-Object { $null -ne $_ })
         firewall          = & $collect 'firewall' { Get-SWFirewallState }
         errors            = @($errors)
     }

@@ -48,7 +48,7 @@ build {
 
 ## 🔧 Development
 
-Requires Go 1.26+, `staticcheck`, `pwsh` with PSScriptAnalyzer and Pester 5, and `packer-sdc` for `make generate`.
+Requires the Go version in `go.mod` or newer, `staticcheck`, `govulncheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for guest tests. `make init` installs the Go tools, including `packer-sdc` for `make generate`. The vulnerability scan in `make check` needs access to the Go vulnerability database.
 
 ```sh
 make check      # lint + typecheck + test

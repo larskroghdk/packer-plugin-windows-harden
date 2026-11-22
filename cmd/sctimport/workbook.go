@@ -6,7 +6,9 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -26,7 +28,7 @@ type workbookNames struct {
 //   - error: The workbook or one of its sheets cannot be read.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func readWorkbook(data []byte) (*workbookNames, error) {
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -45,7 +47,8 @@ func readWorkbook(data []byte) (*workbookNames, error) {
 		return nil, err
 	}
 	names := &workbookNames{registry: map[string]string{}, policies: map[string]bool{}, audit: map[string]string{}}
-	for sheetName, target := range sheets {
+	for _, sheetName := range slices.Sorted(maps.Keys(sheets)) {
+		target := sheets[sheetName]
 		rows, err := readSheet(files[target], shared)
 		if err != nil {
 			return nil, fmt.Errorf("sheet %s: %w", sheetName, err)

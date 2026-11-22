@@ -44,9 +44,13 @@ func decodeUTF16(data []byte, order binary.ByteOrder) string {
 // parseINF splits INF text into sections of key/value pairs, skipping blank
 // lines and ';' comments. Sections without entries are kept with no pairs.
 //
+// Returns:
+//   - map[string][][2]string: The parsed sections.
+//   - error: A line is malformed or exceeds the scanner limit.
+//
 // Author: Lars Krogh
-// Version: 1.0.0
-func parseINF(text string) map[string][][2]string {
+// Version: 1.1.0
+func parseINF(text string) (map[string][][2]string, error) {
 	sections := map[string][][2]string{}
 	current := ""
 	sc := bufio.NewScanner(strings.NewReader(text))
@@ -62,10 +66,16 @@ func parseINF(text string) map[string][][2]string {
 			}
 			continue
 		}
-		k, v, _ := strings.Cut(line, "=")
+		k, v, ok := strings.Cut(line, "=")
+		if !ok || current == "" || strings.TrimSpace(k) == "" {
+			return nil, fmt.Errorf("malformed INF entry %q", line)
+		}
 		sections[current] = append(sections[current], [2]string{strings.TrimSpace(k), strings.TrimSpace(v)})
 	}
-	return sections
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("read INF: %w", err)
+	}
+	return sections, nil
 }
 
 type lgpoRegistryEntry struct {
@@ -81,7 +91,7 @@ type lgpoRegistryEntry struct {
 //     other than DWORD or SZ.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func parseLGPOText(text string) ([]lgpoRegistryEntry, error) {
 	var lines []string
 	sc := bufio.NewScanner(strings.NewReader(text))
@@ -91,6 +101,9 @@ func parseLGPOText(text string) ([]lgpoRegistryEntry, error) {
 			continue
 		}
 		lines = append(lines, line)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("read LGPO text: %w", err)
 	}
 	var out []lgpoRegistryEntry
 	for i := 0; i < len(lines); i++ {

@@ -34,7 +34,7 @@ Follow I19 in [INVARIANTS.md](../INVARIANTS.md). Source comments are limited to 
 
 Run `make check` before committing. It checks formatting, source documentation, PowerShell analysis, example HCL formatting, static analysis, build, vet, Go tests and Pester tests. If `make` is unavailable on Windows, run the corresponding recipes from [Makefile](../Makefile) directly. Use `make generate-check` when validating generated configuration.
 
-Report the checks actually run and any limitations. Passing checks do not establish that orchestration or a real WinRM build works: `provisioner/` and `internal/report/` have no Go tests, and `test/integration/` is empty. PSScriptAnalyzer runs at Error severity; existing warnings are accepted.
+Report the checks actually run and any limitations. Go tests cover reports and selected orchestration paths through a simulated communicator; passing checks do not establish that a real WinRM build works. PSScriptAnalyzer runs at Error severity; existing warnings are accepted.
 
 ## Task-specific procedures
 

@@ -15,3 +15,4 @@ Packer-facing layer: config decoding, run orchestration, the connectivity guard 
 - The guard timings in [guard.go](guard.go) depend on each other: `guardDelay` (3m) has to be longer than `guardProbeWindow` (90s) plus the apply time. If you shorten it, the guest task can roll back a working change before it's disarmed. That case is handled, but the setting is reported as deferred.
 - After a restart, the guest working directory under `C:\Windows\Temp` may be gone, so `restartAndReverify` calls `remote.install` again. Any new post-restart step needs the scripts reinstalled first.
 - The report is still written when `execute` fails. A report-write error is returned only when the run itself succeeded.
+- Cleanup preserves scripts and snapshots while a rollback guard may still be armed, including when arming or disarming was not acknowledged. The guest uses an atomic snapshot claim to prevent rollback from racing a successful disarm.

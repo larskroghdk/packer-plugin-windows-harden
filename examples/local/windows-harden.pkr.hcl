@@ -48,7 +48,7 @@ source "null" "windows" {
   winrm_username = var.username
   winrm_password = var.password
   winrm_use_ssl  = var.use_ssl
-  winrm_insecure = true
+  winrm_insecure = false
   winrm_use_ntlm = true
   winrm_timeout  = "5m"
 }

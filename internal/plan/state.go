@@ -3,6 +3,7 @@ package plan
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,10 +69,10 @@ func (s States) Get(id string) (State, bool) {
 //
 // Returns:
 //   - States: The states by setting ID.
-//   - error: The data is not valid JSON.
+//   - error: The data is not valid JSON or has missing or duplicate IDs.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func ParseStates(data []byte) (States, error) {
 	var res struct {
 		Items []State `json:"items"`
@@ -81,7 +82,11 @@ func ParseStates(data []byte) (States, error) {
 	}
 	out := make(States, len(res.Items))
 	for _, s := range res.Items {
-		out[strings.ToLower(s.ID)] = s
+		key := strings.ToLower(s.ID)
+		if _, exists := out[key]; exists || key == "" {
+			return nil, fmt.Errorf("inspect result has a missing or duplicate setting ID %q", s.ID)
+		}
+		out[key] = s
 	}
 	return out, nil
 }
@@ -100,8 +105,11 @@ const (
 // not installed is NotApplicable.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func Compare(s baseline.Setting, st State) Comparison {
+	if st.Error != nil || (st.Present && st.Value == nil) {
+		return Mismatch
+	}
 	switch s.Kind {
 	case baseline.KindRegistry:
 		r := s.Registry
@@ -150,10 +158,10 @@ func Compare(s baseline.Setting, st State) Comparison {
 }
 
 // normalizeSIDs upper-cases, trims and sorts a comma-separated SID list, and
-// drops empty entries.
+// drops empty and duplicate entries.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func normalizeSIDs(v string) string {
 	var sids []string
 	for _, s := range strings.Split(v, ",") {
@@ -162,5 +170,5 @@ func normalizeSIDs(v string) string {
 		}
 	}
 	sort.Strings(sids)
-	return strings.Join(sids, ",")
+	return strings.Join(slices.Compact(sids), ",")
 }

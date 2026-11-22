@@ -56,12 +56,14 @@ type guardState struct {
 //     failed, or WinRM did not recover within restart_timeout.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *run) applyGuarded(ctx context.Context, items []*plan.Item) error {
 	r.ui.Say(fmt.Sprintf("Applying %d connectivity-guarded settings (automatic rollback after %s unless WinRM is verified)...", len(items), guardDelay))
 	var snapshot guardSnapshot
 	for _, it := range items {
-		if it.Setting.Kind != baseline.KindRegistry || it.Before == nil {
+		if it.Setting.Kind != baseline.KindRegistry || it.Before == nil || it.Before.Error != nil ||
+			(it.Before.Present && (it.Before.Type == nil || it.Before.Value == nil ||
+				(*it.Before.Type != baseline.RegDWORD && *it.Before.Type != baseline.RegSZ))) {
 			return fmt.Errorf("internal error: guarded setting %s has no restorable registry state", it.Setting.ID)
 		}
 		snapshot.Items = append(snapshot.Items, guardItem{
@@ -79,8 +81,16 @@ func (r *run) applyGuarded(ctx context.Context, items []*plan.Item) error {
 		SnapshotPath: snapshotPath,
 		ResultPath:   r.remote.path("guard-rollback-result.json"),
 	}
-	if _, err := r.remote.action(ctx, "ArmGuard", guard); err != nil {
+	r.remote.guardArmed = true
+	armed, err := r.remote.action(ctx, "ArmGuard", guard)
+	if err != nil {
 		return fmt.Errorf("could not arm the connectivity guard, guarded settings were not applied: %w", err)
+	}
+	var acknowledgement struct {
+		Armed bool `json:"armed"`
+	}
+	if err := json.Unmarshal(armed, &acknowledgement); err != nil || !acknowledgement.Armed {
+		return errors.New("the guest did not confirm that the connectivity guard was armed; guarded settings were not applied")
 	}
 	armedAt := r.now()
 	settings := plan.Settings(items)
@@ -88,7 +98,7 @@ func (r *run) applyGuarded(ctx context.Context, items []*plan.Item) error {
 	var probe *facts.Probe
 	probeErr := applyErr
 	if applyErr == nil {
-		probe, probeErr = r.probeUntil(ctx, r.now().Add(guardProbeWindow), "")
+		probe, probeErr = r.probeUntil(ctx, armedAt.Add(guardProbeWindow), "")
 	}
 	if probeErr == nil {
 		problems := facts.WinRMRegressions(r.facts.WinRM, probe)
@@ -140,19 +150,23 @@ func (r *run) applyGuarded(ctx context.Context, items []*plan.Item) error {
 //   - error: The DisarmGuard action failed or its result cannot be decoded.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *run) disarm(ctx context.Context, guard guardRequest) (bool, error) {
 	data, err := r.remote.action(ctx, "DisarmGuard", guard)
 	if err != nil {
 		return false, fmt.Errorf("could not disarm the connectivity guard: %w", err)
 	}
 	var res struct {
-		RolledBack bool `json:"rolled_back"`
+		RolledBack *bool `json:"rolled_back"`
 	}
 	if err := json.Unmarshal(data, &res); err != nil {
 		return false, fmt.Errorf("decode disarm result: %w", err)
 	}
-	return !res.RolledBack, nil
+	if res.RolledBack == nil {
+		return false, errors.New("disarm result does not confirm whether the guard rolled back")
+	}
+	r.remote.guardArmed = false
+	return !*res.RolledBack, nil
 }
 
 // rolledBack records a failed connectivity check and re-inspects items after a
@@ -187,27 +201,43 @@ func (r *run) rolledBack(ctx context.Context, items []*plan.Item, why string) er
 }
 
 // probeUntil repeats the Probe action every probeInterval until it succeeds or
-// deadline passes. When previousBootTime is set, a probe only counts once the
-// boot time has changed, which is how a restart is detected.
+// deadline passes. Each attempt is bounded by the remaining time. When
+// previousBootTime is set, scripts are restored before probing and success
+// requires a different boot time.
 //
 // Returns:
 //   - *facts.Probe: The first successful probe.
 //   - error: The last failure when the deadline passes, or the context error.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func (r *run) probeUntil(ctx context.Context, deadline time.Time, previousBootTime string) (*facts.Probe, error) {
-	var lastErr error
+	lastErr := context.DeadlineExceeded
 	for {
-		attemptCtx, cancel := context.WithTimeout(ctx, probeAttemptTimeout)
-		p, err := r.probe(attemptCtx)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		remaining := deadline.Sub(r.now())
+		if remaining <= 0 {
+			return nil, lastErr
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, min(probeAttemptTimeout, remaining))
+		var p *facts.Probe
+		var err error
+		if previousBootTime != "" {
+			err = r.remote.install(attemptCtx)
+		}
+		if err == nil {
+			p, err = r.probe(attemptCtx)
+		}
 		cancel()
 		switch {
-		case err == nil && (previousBootTime == "" || p.BootTime != previousBootTime):
+		case err == nil && r.now().Before(deadline) && (previousBootTime == "" || p.BootTime != previousBootTime):
 			return p, nil
+		case err == nil && !r.now().Before(deadline):
+			lastErr = context.DeadlineExceeded
 		case err == nil:
 			lastErr = errors.New("the machine has not restarted yet")
-
 		default:
 			lastErr = err
 		}

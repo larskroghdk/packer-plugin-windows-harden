@@ -14,7 +14,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 BeforeDiscovery {
@@ -116,5 +116,50 @@ Describe 'Invoke-SecureWindows.ps1' -Skip:$notWindows {
     }
     It 'exits 1 when an action that needs input gets none' {
         (Invoke-Entry -Action 'Inspect').ExitCode | Should -Be 1
+    }
+    Context 'Probe and guard coordination' {
+        BeforeAll {
+            $fixture = Join-Path $TestDrive 'guest'
+            $null = New-Item -ItemType Directory -Path $fixture
+            Copy-Item (Join-Path (Split-Path $entry) '*.ps1') $fixture
+            $entry = Join-Path $fixture 'Invoke-SecureWindows.ps1'
+            @'
+function Get-SWWinRMConfiguration { [PSCustomObject]@{ service_status = 'Running' } }
+function Get-SWSessionIdentity { [PSCustomObject]@{ is_elevated = $true } }
+function Get-CimInstance {
+    param([Parameter(Mandatory)][string]$ClassName)
+    if ($ClassName -ne 'Win32_OperatingSystem') { throw 'Unexpected CIM class' }
+    [PSCustomObject]@{ LastBootUpTime = [datetime]'2026-11-22T00:00:00Z' }
+}
+'@ | Set-Content -LiteralPath (Join-Path $fixture 'SecureWindows.Facts.ps1')
+            @'
+function Unregister-SWGuardTask { param([string]$TaskName) $true }
+'@ | Add-Content -LiteralPath (Join-Path $fixture 'SecureWindows.Guard.ps1')
+            . (Join-Path $fixture 'SecureWindows.Guard.ps1')
+        }
+        It 'returns a boot time and elevation from a noninteractive Probe command' {
+            $run = Invoke-Entry -Action 'Probe'
+            $run.ExitCode | Should -Be 0
+            $probe = Get-Content -LiteralPath $run.OutputPath -Raw | ConvertFrom-Json
+            $probe.boot_time | Should -BeLike '2026-11-22T*'
+            $probe.session.is_elevated | Should -BeTrue
+        }
+        It 'prevents a rollback from running after disarming has claimed its snapshot' {
+            $snapshotPath = Join-Path $TestDrive 'Rollback-input.json'
+            New-SWGuardClaim -SnapshotPath $snapshotPath | Should -BeTrue
+            $run = Invoke-Entry -Action 'Rollback' -InputObject ([PSCustomObject]@{ items = @() })
+            $run.ExitCode | Should -Be 0
+            Test-Path -LiteralPath $run.OutputPath | Should -BeFalse
+        }
+        It 'fails disarming while a rollback owns the snapshot but has not completed' {
+            $snapshotPath = Join-Path $TestDrive 'running-snapshot.json'
+            New-SWGuardClaim -SnapshotPath $snapshotPath | Should -BeTrue
+            $request = [PSCustomObject]@{
+                task_name = 'test-guard'
+                snapshot_path = $snapshotPath
+                result_path = Join-Path $TestDrive 'not-finished.json'
+            }
+            (Invoke-Entry -Action 'DisarmGuard' -InputObject $request).ExitCode | Should -Be 1
+        }
     }
 }

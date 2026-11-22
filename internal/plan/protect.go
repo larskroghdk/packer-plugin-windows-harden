@@ -114,7 +114,7 @@ func deferred(format string, args ...any) *Decision {
 //   - *Decision: The decision, or nil when no rule objects to the change.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func registryRule(r *baseline.RegistryValue, ctx Context) *Decision {
 	key := registryKey(r)
 	f := ctx.Facts
@@ -144,7 +144,10 @@ func registryRule(r *baseline.RegistryValue, ctx Context) *Decision {
 			return deferred("Packer authenticates as local account %s with an empty password; this setting blocks network logons with blank passwords", f.Session.UserName)
 		}
 	case keyLmCompatibilityLevel, keyNTLMMinServerSec:
-		if f.WinRM != nil && !f.WinRM.Auth.Negotiate {
+		if f.WinRM == nil {
+			return deferred("the WinRM authentication configuration could not be inspected; NTLM requirements cannot be changed safely")
+		}
+		if !f.WinRM.Auth.Negotiate {
 			return nil
 		}
 		return &Decision{
@@ -254,11 +257,12 @@ type uacModel struct {
 	values  map[string]uint64
 }
 
-// newUACModel starts the remote UAC model from the current registry values,
-// using the Windows defaults for values that are absent or not DWORDs.
+// newUACModel starts the remote UAC model from the inspected registry values.
+// Absent values use Windows defaults; unreadable values use the combination
+// that filters local administrator tokens.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func newUACModel(ctx Context) *uacModel {
 	m := &uacModel{session: ctx.Facts.Session, values: map[string]uint64{
 		keyEnableLUA:                1,
@@ -268,11 +272,16 @@ func newUACModel(ctx Context) *uacModel {
 	for key := range m.values {
 		sep := strings.LastIndex(key, `\`)
 		st, ok := ctx.Current.Get(baseline.RegistryID(key[:sep], key[sep+1:]))
-		if !ok || !st.Present || st.Type == nil || *st.Type != baseline.RegDWORD {
+		if ok && st.Error == nil && !st.Present {
 			continue
 		}
-		if v, err := strconv.ParseUint(st.value(), 10, 32); err == nil {
-			m.values[key] = v
+		if key == keyFilterAdministratorToken {
+			m.values[key] = 1
+		}
+		if ok && st.Error == nil && st.Type != nil && *st.Type == baseline.RegDWORD {
+			if v, err := strconv.ParseUint(st.value(), 10, 32); err == nil {
+				m.values[key] = v
+			}
 		}
 	}
 	return m
