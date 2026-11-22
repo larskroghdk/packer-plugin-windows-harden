@@ -39,6 +39,10 @@ You need the Go patch version specified in `go.mod` or newer, `staticcheck`, `go
 
 🚫 Never edit `internal/baseline/data/*.json` by hand. Add or update the package in `cmd/sctimport/sources.json` with its `download.microsoft.com` URL and SHA-256, then run `make baselines DOWNLOADS=<dir with SCT zips>`. See [.agents/skills/update-baseline/SKILL.md](.agents/skills/update-baseline/SKILL.md).
 
+## Agent skills
+
+The [skill collection](docs/agent-skills.md) covers development, review, releases and baseline safety. Edit shared workflows in `.agents/skills`; keep the matching `.claude/skills` adapter's name and description synchronized. Validate metadata, local links and trigger scope when changing a skill. Shared coding rules remain in `INVARIANTS.md` and module guides rather than copied into every skill.
+
 ## 🔐 WinRM protection rules
 
 A setting that could break the Packer session needs a rule in `internal/plan/protect.go`, and that rule must fail closed when guest state is unknown. See [.agents/skills/add-protection-rule/SKILL.md](.agents/skills/add-protection-rule/SKILL.md) and [docs/winrm-protection.md](docs/winrm-protection.md).

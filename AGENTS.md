@@ -24,7 +24,7 @@ A Packer provisioner plugin that applies Microsoft security baselines to Windows
 
 | Command | Does |
 | --- | --- |
-| `make check` | lint + typecheck + test (required before commit) |
+| `make check` | lint + typecheck + vulnerability scan + test (required before commit) |
 | `make generate` | Regenerate `provisioner/config.hcl2spec.go` |
 | `make baselines DOWNLOADS=<dir>` | Regenerate `internal/baseline/data/*.json` |
 | `make build` | Build the plugin binary |
@@ -38,5 +38,11 @@ A Packer provisioner plugin that applies Microsoft security baselines to Windows
 
 ## Skills
 
+- [go-development](.agents/skills/go-development/SKILL.md): Go implementation, package boundaries, context and resource ownership.
+- [powershell-development](.agents/skills/powershell-development/SKILL.md): guest scripts, JSON contracts and Windows PowerShell 5.1 testing.
+- [code-review](.agents/skills/code-review/SKILL.md): requested review, security audit, refactoring and test quality.
+- [release-plugin](.agents/skills/release-plugin/SKILL.md): CI, dependency changes, packaging and authorized release publication.
 - [update-baseline](.agents/skills/update-baseline/SKILL.md): add or refresh a Microsoft baseline.
 - [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md): add a WinRM protection rule for a setting that could break the Packer session.
+
+Load the workflows relevant to the task. Shared instructions live in `.agents/skills`; `.claude/skills` contains discovery adapters only. [Agent skills](docs/agent-skills.md) records the external assessment, ownership and validation procedure. Skill activation does not authorize unrelated refactoring, guest changes or publication.

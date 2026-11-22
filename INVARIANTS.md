@@ -37,7 +37,7 @@ Hard constraints. A change that breaks one of these is wrong even if tests pass.
   Enforced by: `plan.Verify`; `TestBuildAndVerify`.
 
 - **I11** **`mode = "strict"` makes no change when any setting would be deferred.**
-  Enforced by: the strict-mode check in `run.execute` (provisioner/provisioner.go), which runs before any apply. No unit test.
+  Enforced by: the strict-mode check in `run.execute` (provisioner/provisioner.go), which runs before any apply; `TestExecuteReadOnlyModes`.
 
 - **I12** **The plugin runs only over WinRM, in an elevated, 64-bit PowerShell session.**
   Enforced by: the `ConnType` check in `Provisioner.Provision` and the elevation and 64-bit checks in `run.detect`.

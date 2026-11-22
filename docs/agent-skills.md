@@ -1,0 +1,79 @@
+# Agent skills
+
+The six workflows indexed in [AGENTS.md](../AGENTS.md) extend the repository's existing guidance. `INVARIANTS.md` owns hard constraints, module `AGENTS.md` files own local context, and [Makefile](../Makefile) owns executable checks. Skills explain how to apply those sources to a task.
+
+## Assessment and gaps
+
+Reviewed all 20 skill entrypoints in [computerlovetech/umbod at commit 40c9c04](https://github.com/computerlovetech/umbod/tree/40c9c04dd0b726ca15e65e2509880868926695c2/skills), plus the supporting architecture, testing, release and authoring material needed for the decisions below. The nested `write-skill/references/templates/SKILL.md` is a template, not a twenty-first skill. Upstream is [MIT licensed](https://github.com/computerlovetech/umbod/blob/40c9c04dd0b726ca15e65e2509880868926695c2/LICENSE). The local workflows are newly written for this plugin; upstream code, scripts and templates are not vendored or executed.
+
+The existing collection covered only baseline imports and protection rules. It lacked reusable guidance for Go ownership/cancellation, the Go–PowerShell wire contract, runtime-specific testing, review and plugin releases. Claude had shared root instructions but no project skill entrypoints. Copilot repeated many of the invariants. The baseline skill also required unrelated files to change on every update and treated lifecycle corrections like package refreshes.
+
+The collection now keeps architecture and integration inside the language workflows, testing and security review inside `code-review`, and dependency/CI work inside `release-plugin`. Separate architect, documentation, performance and Windows-automation personas would mostly repeat the same sources.
+
+## External skill decisions
+
+Paths below are relative to the pinned upstream `skills/` tree. Adapt means retaining a useful idea in a project-specific workflow; no skill is installed unchanged.
+
+| External skill | Decision | Local treatment |
+| --- | --- | --- |
+| `architecture/api-client-architecture` | Adapt | Validate JSON boundaries in the language workflows. Reject Zod, route classes and a composite HTTP client: the existing Packer communicator is the transport boundary. |
+| `architecture/choose-design-pattern` | Merge | Keep evidence-based, smaller refactors in Go development and review. Omit the OO catalog and mandatory full decision-tree read. |
+| `architecture/ports-adapters-io` | Adapt | Preserve the pure plan package and reuse `packer.Communicator`. Keep fakes in tests; avoid requiring a new port and in-memory adapter for every I/O operation. |
+| `architecture/write-adr` | Reject | There is no established ADR collection to maintain. Explain consequential changes in existing documentation and review descriptions; create a record when requested. |
+| `development/improve-testability` | Merge | Keep focused behavioral tests and resource ownership in `code-review`. Drop fixed three-file batches, automatic stops and the blanket ban on testing unexported Go helpers. |
+| `development/release-umbod` | Adapt | Use candidate commits, immutable tags, observed assets and bounded recovery in `release-plugin`. Omit Umbod versions, PyPI, images, Helm, production branches and Cloudflare. |
+| `development/test-writing` | Adapt | Use Go tests, Pester 5.1, entry-script tests and disposable WinRM guests. Do not install pytest, Vitest, Kind or a browser runner. |
+| `development/write-module-readme` | Merge | Retain useful links and progressive disclosure in existing module guides. Reject an OKF conversion, metadata per document and four additional Python README checks. |
+| `development/write-skill` | Adapt | Keep task-specific triggers, standard frontmatter and real-resource validation. Reject fixed section/item counts and the arbitrary 3,000-character gate; no separate authoring skill or copied validator is needed. |
+| `frontend/frontend-package-manager` | Reject | Bun/uv rules do not govern Go modules or the pinned PowerShell modules in this project. |
+| `frontend/reusable-components` | Reject | No frontend component tree, component index or associated ADR exists here. |
+| `frontend/svelte/create-state-class` | Reject | Svelte reactive state classes have no project consumer and would encourage inappropriate Go abstractions. |
+| `frontend/svelte/effect-usage-guard` | Reject | No Svelte effects exist. Go context and resource ownership are covered by the Go workflow. |
+| `frontend/svelte/svelte-docs-best-practices` | Reject | No Svelte/SvelteKit code or Node toolchain is present. |
+| `integrations/run-diagnostics` | Reject | Depends on Umbod MCP playbooks and diagnostic submission; no corresponding project integration exists. |
+| `integrations/umbod-agent-behaviour` | Reject | External obstacle telemetry is unrelated to building a Packer plugin and must not become a repository-wide reporting obligation. |
+| `integrations/umbod-connected-apps` | Reject | Umbod-specific tools and access rules are outside this repository's runtime and development dependencies. |
+| `other/agent-browser-ui-check` | Reject | The integration boundary is WinRM and a Windows guest, with no UI to validate in a browser. |
+| `python/fastapi-dependency-lifetime` | Reject | FastAPI providers and application lifespans do not match the Packer SDK. Go resource ownership is addressed directly. |
+| `python/python-domain-model-none-design` | Reject | A blanket absence-normalization policy conflicts with nil guest facts that deliberately represent unknown state and trigger fail-closed decisions. |
+
+## Discovery and ownership
+
+- **Codex:** the canonical `.agents/skills/<name>/SKILL.md` files use repository skill discovery. Invoke with `$go-development`, for example, or let the host match the description. See [OpenAI's skill guide](https://learn.chatgpt.com/docs/build-skills).
+- **Claude Code:** `.claude/skills/<name>/SKILL.md` files contain matching discovery metadata and explicitly instruct Claude to read the shared file. Invoke `/go-development`, for example. This follows [Claude's project skill location](https://code.claude.com/docs/en/skills#choose-where-skills-load) without requiring Windows symlinks or duplicated workflow bodies. `CLAUDE.md` continues importing the root guidance.
+- **Other agents:** follow the catalog in AGENTS.md or the explicit links in `.github/copilot-instructions.md` and read the selected skill. An agent understanding Markdown is not proof that it implements Codex or Claude discovery.
+
+Only standard `name` and `description` frontmatter is needed. There are no tool grants, hooks, models, MCP dependencies, global installations or agent-specific execution commands. The [Agent Skills specification](https://agentskills.io/specification) defines the common file format; the host defines invocation and discovery.
+
+Edit workflow bodies only in `.agents/skills`. When changing a description or adding/removing a skill, update its thin Claude adapter and the root catalog. Keep relative links relative to the file containing them; run project commands from the repository root. If a host does not refresh the skill list, restart its session. A configured permission policy still applies, and skill activation grants no additional authority.
+
+## Guidance and validation
+
+Go guidance was checked against [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments), [context ownership](https://pkg.go.dev/context) and the [race detector's platform/toolchain requirements](https://go.dev/doc/articles/race_detector). PowerShell guidance follows Microsoft's [approved verbs](https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands) and [Windows PowerShell 5.1 help conventions](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-5.1). This project's I19 documentation rules and 5.1 guest compatibility remain authoritative.
+
+For skill changes, validate required frontmatter and matching folder names, resolve local Markdown links, compare canonical and adapter metadata, and inspect activation overlap. An available skill-creator validator can check the standard frontmatter; its success does not prove semantic quality. Do not use upstream's fixed-format checker against this differently structured collection.
+
+Use concrete routing cases when reviewing the collection:
+
+| Request | Relevant workflow and expected boundary |
+| --- | --- |
+| Change a guard deadline | Go development; use `run.now`, preserve recovery ownership, test with the simulated communicator, identify live guest coverage still needed. |
+| Fix one-item Detect JSON | PowerShell development; inspect Go tags and test zero/one/multiple results under Windows PowerShell 5.1. |
+| Refresh a Microsoft SCT package | Baseline update; verify provenance and regenerate data, route new lockout-sensitive settings to the protection workflow. |
+| Correct an end-of-support date | Baseline update; verify the Microsoft Lifecycle date, without fabricating package or generated-data changes. |
+| Review failing tests | Code review; keep real behavior under test and use existing seams without exporting private helpers or forcing a three-file batch. |
+| Prepare a release or fix CI | Plugin release; use current workflow/toolchain evidence and distinguish unsigned snapshots from signed public assets. |
+| Push a reviewed code commit | No automatic version tag, GitHub release or guest hardening operation. |
+
+Repository validation commands remain in Makefile. In particular, `make check` includes `gofmt`, Go and PowerShell documentation checks, PSScriptAnalyzer, example formatting, staticcheck, build, vet, govulncheck, Go tests and Windows PowerShell Pester tests. `make generate-check` applies to configuration changes. If make is missing, run the recipe lines directly.
+
+Structural validation and these routing reviews do not prove a model will select or obey a skill in every host. Report native discovery, model execution and live guest verification separately; none should be inferred from passing Go/Pester tests.
+
+Validation performed for this collection:
+
+- The bundled skill-creator validator accepted all six canonical files and six Claude adapters. All 67 local Markdown links and both `CLAUDE.md` imports resolved; adapter metadata matched its canonical file.
+- The adoption table accounts for all 20 upstream entrypoints at the pinned commit.
+- Codex CLI 0.167.0 returned all six canonical project skills, enabled and without project skill errors, through its read-only `skills/list` API. No model turn was started.
+- Claude Code 2.1.326 was present. Its documented project paths and adapter links were checked; slash-command execution and model-following behavior were not exercised.
+- The `make check` recipe commands passed when run directly because make was unavailable: formatting, documentation checks, Go build/vet/staticcheck/tests, govulncheck, PowerShell analysis, example formatting and all 41 Windows PowerShell 5.1 Pester tests.
+- Runtime code and build configuration were not changed by the skill adaptation. Live guest hardening, signed release publication and race testing are outside this documentation change.
