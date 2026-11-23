@@ -125,7 +125,7 @@ catch {
     $results.Add((ConvertTo-EnvironmentResult -Component 'git' -Role 'version control' -Ready $false -Required $true -Detail $_.Exception.Message))
 }
 $hooksPath = Invoke-AIGit -ArgumentList 'config', '--get', 'core.hooksPath' -WorkingDirectory $root -AllowFailure
-$results.Add((ConvertTo-EnvironmentResult -Component 'git hooks' -Role 'pre-commit review gate, pre-push verification' -Ready ($hooksPath -eq '.githooks') -Required $true -Detail $(if ($hooksPath -eq '.githooks') { 'core.hooksPath = .githooks' } else { 'Run: pwsh -NoProfile -File scripts/ai/Invoke-AgentWorkflow.ps1 -Stage InstallHooks' })))
+$results.Add((ConvertTo-EnvironmentResult -Component 'git hooks' -Role 'pre-commit and pre-merge-commit review gate, pre-push verification' -Ready ($hooksPath -eq '.githooks') -Required $true -Detail $(if ($hooksPath -eq '.githooks') { 'core.hooksPath = .githooks' } else { 'Run: pwsh -NoProfile -File scripts/ai/Invoke-AgentWorkflow.ps1 -Stage InstallHooks' })))
 $pester = Get-Module -ListAvailable -Name Pester | Sort-Object Version -Descending | Select-Object -First 1
 $results.Add((ConvertTo-EnvironmentResult -Component 'Pester' -Role 'agent workflow tests' -Ready ($null -ne $pester -and $pester.Version -ge [version]'5.6.1') -Required $false -Detail $(if ($pester) { $pester.Version.ToString() } else { 'Install-Module Pester -RequiredVersion 5.6.1 -Scope CurrentUser' })))
 $agents = @(

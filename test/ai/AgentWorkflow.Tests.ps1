@@ -90,7 +90,7 @@ BeforeAll {
         Copy-Item -Path (Join-Path $sourceRoot 'scripts/ai/*') -Destination (Join-Path $repo 'scripts/ai')
         Copy-Item -Path (Join-Path $sourceRoot '.githooks/*') -Destination (Join-Path $repo '.githooks')
         if (-not $IsWindows) {
-            & chmod +x (Join-Path $repo '.githooks/pre-commit') (Join-Path $repo '.githooks/pre-push')
+            & chmod +x @(Get-ChildItem -LiteralPath (Join-Path $repo '.githooks') -File | ForEach-Object FullName)
         }
         $settings = @"
 @{
@@ -250,7 +250,8 @@ Describe 'Pre-commit Codex gate' {
     }
     It 'fails closed when Codex <Mode>' -ForEach @(
         @{ Mode = 'fail'; Message = 'exited with code 1' }
-        @{ Mode = 'malformed'; Message = 'unknown verdict' }
+        @{ Mode = 'malformed'; Message = 'does not match review-schema.json' }
+        @{ Mode = 'wrong-type'; Message = 'does not match review-schema.json' }
     ) {
         $env:FAKE_CODEX_MODE = $Mode
         Add-StagedChange -Name 'main.txt'
@@ -258,6 +259,23 @@ Describe 'Pre-commit Codex gate' {
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match $Message
         $result.Output | Should -Match 'not approved'
+    }
+    It 'reads the checks from the staged settings, not from unstaged edits' {
+        Add-StagedChange -Name 'FAIL'
+        $settings = Join-Path $repo 'scripts/ai/settings.psd1'
+        @(Get-Content -LiteralPath $settings) | Where-Object { $_ -notmatch 'fail marker' } | Set-Content -LiteralPath $settings
+        $result = Invoke-Git commit -m 'unstaged policy'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match "Check 'fail marker' failed"
+        Get-AgentCall -Agent codex | Should -BeNullOrEmpty
+    }
+    It 'blocks the commit when the index changes during the review' {
+        $env:FAKE_CODEX_MODE = 'restage'
+        $env:FAKE_REPO = $repo
+        Add-StagedChange -Name 'main.txt'
+        $result = Invoke-Script Invoke-AgentWorkflow.ps1 -Stage PreCommit
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'staged changes changed during the review'
     }
     It 'fails closed when Codex times out' {
         $env:FAKE_CODEX_MODE = 'hang'
@@ -338,6 +356,19 @@ Describe 'Process runner' {
         $result.ExitCode | Should -BeNullOrEmpty
         $watch.Elapsed.TotalSeconds | Should -BeLessThan 30
     }
+    It 'runs a batch file through cmd.exe with its arguments intact' -Skip:(-not $IsWindows) {
+        $batch = Join-Path $TestDrive 'echo args.cmd'
+        Set-Content -LiteralPath $batch -Value '@echo %*' -Encoding ascii
+        $result = Invoke-AIProcess -FilePath $batch -ArgumentList 'two words', 'write(*.md)', 'a&b|c' -TimeoutSeconds 30
+        $result.ExitCode | Should -Be 0
+        $result.StandardOutput.Trim() | Should -Be '"two words" "write(*.md)" "a&b|c"'
+    }
+    It 'refuses batch file arguments that cmd.exe would expand' -Skip:(-not $IsWindows) {
+        $batch = Join-Path $TestDrive 'noop.cmd'
+        Set-Content -LiteralPath $batch -Value '@exit /b 0' -Encoding ascii
+        { Invoke-AIProcess -FilePath $batch -ArgumentList '%PATH%' -TimeoutSeconds 30 } | Should -Throw '*cmd.exe would interpret*'
+        { Invoke-AIProcess -FilePath $batch -ArgumentList 'say "hi"' -TimeoutSeconds 30 } | Should -Throw '*cmd.exe would interpret*'
+    }
 }
 
 Describe 'Pre-push verification' {
@@ -375,6 +406,31 @@ Describe 'Pre-push verification' {
         (Invoke-Git commit -q -m 'reviewed').ExitCode | Should -Be 0
         $pushed = Invoke-Git push origin main
         $pushed.ExitCode | Should -Be 0 -Because $pushed.Output
+    }
+    It 'reviews an automatic merge commit and allows pushing it' {
+        $null = Invoke-Git switch -q -c feature
+        Add-StagedChange -Name 'feature.txt'
+        (Invoke-Git commit -q -m 'feature').ExitCode | Should -Be 0
+        $null = Invoke-Git switch -q main
+        Add-StagedChange -Name 'main.txt'
+        (Invoke-Git commit -q -m 'main').ExitCode | Should -Be 0
+        $merged = Invoke-Git merge --no-ff -m 'merge feature' feature
+        $merged.ExitCode | Should -Be 0 -Because $merged.Output
+        $merged.Output | Should -Match 'Commit allowed'
+        $pushed = Invoke-Git push origin main
+        $pushed.ExitCode | Should -Be 0 -Because $pushed.Output
+    }
+    It 'blocks a push of a merge commit that was not reviewed' {
+        $null = Invoke-Git switch -q -c feature
+        Add-StagedChange -Name 'feature.txt'
+        (Invoke-Git commit -q -m 'feature').ExitCode | Should -Be 0
+        $null = Invoke-Git switch -q main
+        Add-StagedChange -Name 'main.txt'
+        (Invoke-Git commit -q -m 'main').ExitCode | Should -Be 0
+        $null = Invoke-Git merge --no-ff --no-verify -m 'unreviewed merge' feature
+        $blocked = Invoke-Git push origin main
+        $blocked.ExitCode | Should -Not -Be 0
+        $blocked.Output | Should -Match 'not approved'
     }
     It 'blocks a push of an amended commit when the original commit was not reviewed' {
         Add-StagedChange -Name 'main.txt' -Content 'first'

@@ -8,14 +8,14 @@
     The first argument names the agent; the rest are the arguments the workflow passed.
     They are read from $args, unbound, so options such as -p reach the fake unchanged.
     Each call is appended to the file named by FAKE_AGENT_LOG.
-    FAKE_CODEX_MODE, FAKE_GEMINI_MODE and FAKE_COPILOT_MODE choose the behavior, so a test can produce approvals, rejections, malformed answers, failures, timeouts, out-of-scope changes and commit attempts without any network access.
+    FAKE_CODEX_MODE, FAKE_GEMINI_MODE and FAKE_COPILOT_MODE choose the behavior, so a test can produce approvals, rejections, malformed answers, answers of the wrong type, a change staged while the review runs (restage, in the repository named by FAKE_REPO), failures, timeouts, out-of-scope changes and commit attempts without any network access.
 
 .EXAMPLE
     pwsh -File FakeAgent.ps1 codex exec --sandbox read-only
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 
@@ -76,6 +76,12 @@ switch ($Agent) {
             'approve-with-high' { $review = @{ verdict = 'approve'; summary = 'Approved anyway.'; findings = @($finding) } }
             'reject' { $review = @{ verdict = 'reject'; summary = 'Has a defect.'; findings = @($finding) } }
             'malformed' { Set-Content -LiteralPath $output -Value '{"verdict":"maybe","summary":"unsure","findings":[]}'; exit 0 }
+            'wrong-type' { Set-Content -LiteralPath $output -Value '{"verdict":"approve","summary":5,"findings":[]}'; exit 0 }
+            'restage' {
+                Set-Content -LiteralPath (Join-Path $env:FAKE_REPO 'late.txt') -Value 'staged during the review'
+                $null = & git -C $env:FAKE_REPO add late.txt
+                $review = @{ verdict = 'approve'; summary = 'Looks correct.'; findings = @() }
+            }
             'fail' { [Console]::Error.WriteLine('401 Unauthorized: not logged in'); exit 1 }
             'hang' { Start-Sleep -Seconds 60; exit 0 }
         }

@@ -57,6 +57,7 @@ function Invoke-AIProcess {
     .DESCRIPTION
         Starts the program without a shell, passes each argument separately, writes the input text to standard input and closes it, and reads standard output and error as UTF-8. When the timeout passes, also while the input is still being written to a process that does not read it, the process tree is killed before standard input is closed.
         A process that is still running when the function fails is killed as well.
+        On Windows, a .cmd or .bat file, such as the shim npm installs for a CLI, runs through cmd.exe /d /v:off /s /c with each argument quoted, and the function refuses arguments that cmd.exe would still interpret: double quotes, percent signs, line breaks and a trailing backslash.
         Agent processes get AI_AGENT_ACTIVE=1 in their environment, so a workflow script that they start refuses to run.
 
     .PARAMETER FilePath
@@ -90,7 +91,7 @@ function Invoke-AIProcess {
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.1.0
+        Version : 1.2.0
     #>
     [CmdletBinding()]
     param(
@@ -106,9 +107,21 @@ function Invoke-AIProcess {
         [switch]$Agent
     )
     $utf8 = [Text.UTF8Encoding]::new($false)
-    $startInfo = [Diagnostics.ProcessStartInfo]::new($FilePath)
-    foreach ($argument in $ArgumentList) {
-        $startInfo.ArgumentList.Add($argument)
+    if ($IsWindows -and [IO.Path]::GetExtension($FilePath) -in '.cmd', '.bat') {
+        foreach ($value in @($FilePath) + $ArgumentList) {
+            if ($value -match '["%\r\n]' -or $value.EndsWith('\')) {
+                throw "Cannot pass '$value' to the batch file $FilePath safely: cmd.exe would interpret it."
+            }
+        }
+        $startInfo = [Diagnostics.ProcessStartInfo]::new((Join-Path $env:SystemRoot 'System32\cmd.exe'))
+        $quoted = (@($FilePath) + $ArgumentList | ForEach-Object { '"' + $_ + '"' }) -join ' '
+        $startInfo.Arguments = "/d /v:off /s /c `"$quoted`""
+    }
+    else {
+        $startInfo = [Diagnostics.ProcessStartInfo]::new($FilePath)
+        foreach ($argument in $ArgumentList) {
+            $startInfo.ArgumentList.Add($argument)
+        }
     }
     $startInfo.WorkingDirectory = $WorkingDirectory
     $startInfo.UseShellExecute = $false
@@ -380,7 +393,7 @@ function Get-AIChangeset {
     .DESCRIPTION
         A changeset is the difference between a base tree and a result tree.
         For staged changes these are the tree of HEAD (or the empty tree) and the tree of the index.
-        For a commit they are the trees of its first parent and of the commit.
+        For a commit they are the trees of its first parent and of the commit, so a merge commit's changeset is everything the merge adds to the first parent, conflict resolutions included.
         The ID "<base>-<result>" changes whenever any byte of the changeset changes, so a review record keyed by it cannot be reused for different content.
 
     .PARAMETER RepositoryRoot
@@ -394,11 +407,11 @@ function Get-AIChangeset {
         Get-AIChangeset -RepositoryRoot $root -Commit HEAD
 
     .OUTPUTS
-        System.Management.Automation.PSCustomObject with Id, BaseTree, Tree, Commit, IsMerge and Files.
+        System.Management.Automation.PSCustomObject with Id, BaseTree, Tree, Commit and Files.
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.0.0
+        Version : 1.1.0
     #>
     [CmdletBinding()]
     param(
@@ -406,12 +419,12 @@ function Get-AIChangeset {
         [string]$RepositoryRoot,
         [string]$Commit
     )
-    $isMerge = $false
     $commitId = $null
+    $baseTree = $null
+    $tree = $null
     if ($Commit) {
         $commitId = Invoke-AIGit -ArgumentList 'rev-parse', '--verify', "$Commit^{commit}" -WorkingDirectory $RepositoryRoot
         $parents = @((Invoke-AIGit -ArgumentList 'rev-list', '--parents', '-n', '1', $commitId -WorkingDirectory $RepositoryRoot).Split(' ') | Select-Object -Skip 1)
-        $isMerge = $parents.Count -gt 1
         $baseTree = if ($parents.Count -gt 0) { Invoke-AIGit -ArgumentList 'rev-parse', "$($parents[0])^{tree}" -WorkingDirectory $RepositoryRoot } else { $script:EmptyTree }
         $tree = Invoke-AIGit -ArgumentList 'rev-parse', "$commitId^{tree}" -WorkingDirectory $RepositoryRoot
     }
@@ -428,7 +441,6 @@ function Get-AIChangeset {
         BaseTree = $baseTree
         Tree     = $tree
         Commit   = $commitId
-        IsMerge  = $isMerge
         Files    = @($names -split "`n" | Where-Object { $_ })
     }
 }
@@ -977,33 +989,43 @@ function ConvertTo-AIReview {
         Validates the JSON that Codex returned and converts it to a review.
 
     .DESCRIPTION
-        The review must have the verdict approve or reject, a summary, and findings with a known severity, a file, a line, a title, an impact and a remediation.
+        The JSON must match the review schema completely: field types, allowed values, required fields and no additional properties.
+        The review must then have the verdict approve or reject, a summary, and findings with a known severity, a file, a line, a title, an impact and a remediation.
         Anything else is rejected, so a malformed answer never counts as an approval.
 
     .PARAMETER Json
         The final message from Codex.
 
+    .PARAMETER SchemaPath
+        The review schema, review-schema.json from the reviewed tree.
+
     .EXAMPLE
-        ConvertTo-AIReview -Json (Get-Content review.json -Raw)
+        ConvertTo-AIReview -Json (Get-Content review.json -Raw) -SchemaPath scripts/ai/review-schema.json
 
     .OUTPUTS
         System.Management.Automation.PSCustomObject
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.0.0
+        Version : 1.1.0
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [AllowEmptyString()]
-        [string]$Json
+        [string]$Json,
+        [Parameter(Mandatory)]
+        [string]$SchemaPath
     )
     try {
         $review = $Json | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
         throw "Codex did not return valid JSON: $($_.Exception.Message)"
+    }
+    $schemaErrors = $null
+    if (-not (Test-Json -Json $Json -SchemaFile $SchemaPath -ErrorAction SilentlyContinue -ErrorVariable schemaErrors)) {
+        throw "The Codex review does not match review-schema.json: $(@($schemaErrors | ForEach-Object { $_.Exception.Message }) -join '; ')"
     }
     foreach ($name in 'verdict', 'summary', 'findings') {
         if (-not $review -or $review.PSObject.Properties.Name -notcontains $name) {
@@ -1033,61 +1055,64 @@ function Invoke-AIReviewGate {
 
     .DESCRIPTION
         Exports the result tree of the changeset, runs the matching checks there and, when they pass, asks Codex in a read-only sandbox to review the diff against the repository rules.
+        The settings, the review prompt and the review schema are read from the exported tree, never from the working directory, so unstaged edits to them cannot change how the changeset is reviewed.
         The record is saved for every completed review, approved or not.
-        Failed checks, Codex errors, timeouts and malformed answers throw, so no record and no approval is produced.
+        Failed checks, Codex errors, timeouts, malformed answers and a tree without the review policy throw, so no record and no approval is produced.
 
     .PARAMETER RepositoryRoot
         The repository root.
-
-    .PARAMETER Settings
-        The settings from Get-AIConfiguration.
 
     .PARAMETER Changeset
         The changeset from Get-AIChangeset.
 
     .EXAMPLE
-        Invoke-AIReviewGate -RepositoryRoot $root -Settings $settings -Changeset $changeset
+        Invoke-AIReviewGate -RepositoryRoot $root -Changeset $changeset
 
     .OUTPUTS
         System.Management.Automation.PSCustomObject. The review record.
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.0.0
+        Version : 2.0.0
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$RepositoryRoot,
         [Parameter(Mandatory)]
-        [hashtable]$Settings,
-        [Parameter(Mandatory)]
         [PSCustomObject]$Changeset
     )
-    $codex = Resolve-AICommand -Name $Settings.Codex.Command
-    $diff = (Invoke-AIProcess -FilePath 'git' -ArgumentList 'diff', '--no-color', '--no-ext-diff', '--find-renames', $Changeset.BaseTree, $Changeset.Tree -WorkingDirectory $RepositoryRoot -TimeoutSeconds 300).StandardOutput
-    $size = [Text.Encoding]::UTF8.GetByteCount($diff)
-    if ($size -gt $Settings.Codex.MaxDiffBytes) {
-        throw "The changeset diff has $size bytes, more than the review limit of $($Settings.Codex.MaxDiffBytes). Split it into smaller commits."
-    }
     $snapshot = Export-AITree -RepositoryRoot $RepositoryRoot -Tree $Changeset.Tree
     $work = Join-Path ([IO.Path]::GetTempPath()) ("ai-review-" + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $work
     try {
+        $policy = Join-Path $snapshot 'scripts/ai'
+        foreach ($name in 'settings.psd1', 'review-prompt.md', 'review-schema.json') {
+            if (-not (Test-Path -LiteralPath (Join-Path $policy $name) -PathType Leaf)) {
+                throw "The reviewed tree has no scripts/ai/$name, so its review policy is unknown."
+            }
+        }
+        $Settings = Get-AIConfiguration -RepositoryRoot $snapshot
+        $codex = Resolve-AICommand -Name $Settings.Codex.Command
+        $diff = (Invoke-AIProcess -FilePath 'git' -ArgumentList 'diff', '--no-color', '--no-ext-diff', '--find-renames', $Changeset.BaseTree, $Changeset.Tree -WorkingDirectory $RepositoryRoot -TimeoutSeconds 300).StandardOutput
+        $size = [Text.Encoding]::UTF8.GetByteCount($diff)
+        if ($size -gt $Settings.Codex.MaxDiffBytes) {
+            throw "The changeset diff has $size bytes, more than the review limit of $($Settings.Codex.MaxDiffBytes). Split it into smaller commits."
+        }
         Write-AIMessage "Checking changeset $($Changeset.Id)"
         $checks = @(Invoke-AICheck -Settings $Settings -Changeset $Changeset -Directory $snapshot)
         $failed = @($checks | Where-Object { -not $_.Passed })
         if ($failed.Count -gt 0) {
             throw "Check '$($failed[0].Name)' failed:`n$($failed[0].Output)"
         }
-        $schema = Join-Path $RepositoryRoot 'scripts/ai/review-schema.json'
+        $schema = Join-Path $policy 'review-schema.json'
         $output = Join-Path $work 'review.json'
         $arguments = @('exec', '--sandbox', 'read-only', '--ephemeral', '--skip-git-repo-check', '-C', $snapshot, '--output-schema', $schema, '-o', $output)
         if ($Settings.Codex.Model) {
             $arguments += @('-m', $Settings.Codex.Model)
         }
         $arguments += '-'
-        $prompt = (Get-Content -LiteralPath (Join-Path $RepositoryRoot 'scripts/ai/review-prompt.md') -Raw) + "`n<changed_files>`n$($Changeset.Files -join "`n")`n</changed_files>`n`n<diff>`n$diff`n</diff>`n"
+        $prompt = (Get-Content -LiteralPath (Join-Path $policy 'review-prompt.md') -Raw) + "`n<changed_files>`n$($Changeset.Files -join "`n")`n</changed_files>`n`n<diff>`n$diff`n</diff>`n"
         $review = $null
         $failure = $null
         for ($attempt = 1; $attempt -le $Settings.Codex.MaxAttempts -and -not $review; $attempt++) {
@@ -1106,7 +1131,7 @@ function Invoke-AIReviewGate {
                 continue
             }
             try {
-                $review = ConvertTo-AIReview -Json (Get-Content -LiteralPath $output -Raw)
+                $review = ConvertTo-AIReview -Json (Get-Content -LiteralPath $output -Raw) -SchemaPath $schema
             }
             catch {
                 $failure = $_.Exception.Message

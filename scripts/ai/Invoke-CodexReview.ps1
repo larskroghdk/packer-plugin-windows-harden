@@ -52,7 +52,7 @@ try {
         Write-AIMessage "Changeset $($changeset.Id) was already approved at $($record.reviewed_at)."
         exit 0
     }
-    $record = Invoke-AIReviewGate -RepositoryRoot $root -Settings $settings -Changeset $changeset
+    $record = Invoke-AIReviewGate -RepositoryRoot $root -Changeset $changeset
     Write-AIReview -Record $record
     if ($record.approved) { exit 0 } else { exit 1 }
 }
