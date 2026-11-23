@@ -43,7 +43,7 @@ CI snapshots and releases use the official prebuilt GoReleaser action. Local pac
 
 ## Agent skills
 
-The [skill collection](docs/agent-skills.md) covers development, review, releases and baseline safety. Edit shared workflows in `.agents/skills`; keep the matching `.claude/skills` adapter's name and description synchronized. Validate metadata, local links and trigger scope when changing a skill. Shared coding rules remain in `INVARIANTS.md` and module guides rather than copied into every skill.
+The [skill collection](docs/agent-skills.md) covers development, review, releases and baseline safety. Edit shared workflows only in `.agents/skills`; there are no per-tool copies to keep in sync. Validate metadata, local links and trigger scope when changing a skill. Shared coding rules remain in `INVARIANTS.md` and module guides rather than copied into every skill.
 
 ## 🔐 WinRM protection rules
 
