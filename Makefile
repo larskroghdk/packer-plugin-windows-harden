@@ -63,13 +63,13 @@ baselines:
 	@if [ -z "$(DOWNLOADS)" ]; then echo "usage: make baselines DOWNLOADS=<dir with SCT zips>"; exit 1; fi
 	go run ./cmd/sctimport -downloads "$(DOWNLOADS)" -out internal/baseline/data
 
-init: $(GORELEASER) $(STATICCHECK) $(GOVULNCHECK) $(PACKER_SDC)
+init: $(STATICCHECK) $(GOVULNCHECK) $(PACKER_SDC)
 	go mod download
 
 $(GORELEASER) $(STATICCHECK) $(GOVULNCHECK) $(PACKER_SDC): Makefile go.mod
 
 $(GORELEASER):
-	go install github.com/goreleaser/goreleaser/v2@v$(GORELEASER_VERSION)
+	GOTOOLCHAIN=auto go install github.com/goreleaser/goreleaser/v2@v$(GORELEASER_VERSION)
 
 $(STATICCHECK):
 	go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)

@@ -4,7 +4,9 @@
 
 ## 🧰 Setup
 
-You need the Go patch version specified in `go.mod` or newer, `staticcheck`, `govulncheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for the Pester run. `make init` installs the Go tools. `make check` includes a vulnerability scan that requires access to the Go vulnerability database.
+You need the Go patch version specified in `go.mod` or newer, `staticcheck`, `govulncheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for the Pester run. `make init` installs the check and configuration-generation tools. `make check` includes a vulnerability scan that requires access to the Go vulnerability database.
+
+CI snapshots and releases use the official prebuilt GoReleaser action. Local packaging targets install GoReleaser when needed; its install recipe uses `GOTOOLCHAIN=auto` because the tool requires a newer compiler than the plugin. The override applies only to tool installation, while plugin builds and checks use the project toolchain.
 
 ⚠️ `make` isn't on the default Git Bash PATH on Windows. If it's missing, run the recipe lines from the [Makefile](Makefile) directly.
 
