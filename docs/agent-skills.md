@@ -12,7 +12,12 @@ How the instruction files are laid out, how each coding agent finds them, and ho
 | `.agents/skills/<name>/SKILL.md` | Task procedures | Codex as repository skills; others read the file explicitly |
 | [CLAUDE.md](../CLAUDE.md) | Imports the two root files and adds Claude-only notes | Claude Code |
 | `.claude/agents/*.md` | Three read-only reviewer subagents | Claude Code |
-| [.github/copilot-instructions.md](../.github/copilot-instructions.md) | Points Copilot at `AGENTS.md` | GitHub Copilot |
+| [.github/copilot-instructions.md](../.github/copilot-instructions.md) | Points Copilot at `AGENTS.md` and sets its role | GitHub Copilot |
+| `.github/instructions/*.instructions.md` | Path-specific rules, such as for workflows | GitHub Copilot |
+| [GEMINI.md](../GEMINI.md) | Imports the two root files and sets Gemini's role | Gemini CLI |
+| `.claude/commands/*.md` | `/research`, `/docs` and `/review` | Claude Code |
+| `.claude/settings.json` | Denies hook bypasses and `.git` writes | Claude Code |
+| `scripts/ai/`, `.githooks/` | Agent orchestration and the Codex review gate ([ai-development.md](ai-development.md)) | Everyone |
 | [Makefile](../Makefile) | Every executable check | Everyone |
 
 Each rule has one home. Don't copy rules into a skill or a tool-specific file. Link to them instead.
@@ -23,7 +28,7 @@ Each rule has one home. Don't copy rules into a skill or a tool-specific file. L
 - **Claude Code** loads `CLAUDE.md` and its imports. Its native skill directory is `.claude/skills`. This repository doesn't keep one, because a second copy of each skill would drift. Claude therefore reads skills as files and doesn't offer them as `/` commands. The reviewers in `.claude/agents` use Claude's [subagent format](https://code.claude.com/docs/en/sub-agents).
 - **Other agents** get no native skill discovery. They should follow the links in `AGENTS.md`.
 
-No MCP servers, hooks or permission settings are configured for the project.
+No MCP servers or Claude Code hooks are configured. The Git hooks and permission settings are described in [ai-development.md](ai-development.md).
 
 ## Checking a change
 
