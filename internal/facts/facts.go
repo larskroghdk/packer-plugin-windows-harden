@@ -19,14 +19,15 @@ const (
 // the guest could not collect that part. Errors says why, and rules that need
 // the missing part must fail closed.
 type Facts struct {
-	OS               OS           `json:"os"`
-	Domain           *Domain      `json:"domain"`
-	Roles            []string     `json:"roles"`
-	Session          Session      `json:"session"`
-	WinRM            *WinRM       `json:"winrm"`
-	WinRMConnections []Connection `json:"winrm_connections"`
-	Firewall         *Firewall    `json:"firewall"`
-	Errors           []string     `json:"errors"`
+	OS               OS              `json:"os"`
+	Domain           *Domain         `json:"domain"`
+	Roles            []string        `json:"roles"`
+	Session          Session         `json:"session"`
+	SessionPassword  *PasswordStatus `json:"session_password"`
+	WinRM            *WinRM          `json:"winrm"`
+	WinRMConnections []Connection    `json:"winrm_connections"`
+	Firewall         *Firewall       `json:"firewall"`
+	Errors           []string        `json:"errors"`
 }
 
 // OS identifies the Windows release, edition and process architecture.
@@ -75,6 +76,14 @@ func (s Session) TokenSIDs() map[string]bool {
 		out[strings.ToUpper(g)] = true
 	}
 	return out
+}
+
+// PasswordStatus describes the password of the local account Packer logs on
+// with. It is collected only for local accounts. AgeSeconds is measured on the
+// guest clock and is nil when the password has never been set.
+type PasswordStatus struct {
+	AgeSeconds   *int64 `json:"age_seconds"`
+	NeverExpires bool   `json:"never_expires"`
 }
 
 // WinRM is the WinRM service configuration.

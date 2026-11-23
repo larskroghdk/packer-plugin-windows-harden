@@ -6,14 +6,14 @@
 
 .DESCRIPTION
     Dot-sourced by Invoke-SecureWindows.ps1.
-    Reads operating system, domain membership, server roles, session identity, WinRM configuration and connections, and firewall state.
+    Reads operating system, domain membership, server roles, session identity and local password status, WinRM configuration and connections, and firewall state.
 
 .EXAMPLE
     . .\SecureWindows.Facts.ps1
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.1.0
+    Version : 1.2.0
 #>
 
 
@@ -165,6 +165,52 @@ function Get-SWSessionIdentity {
     }
     finally {
         $identity.Dispose()
+    }
+}
+
+function Get-SWLocalPasswordStatus {
+    <#
+    .SYNOPSIS
+        Reports the password age and expiry exemption of a local account.
+
+    .DESCRIPTION
+        Reads PasswordLastSet with Get-LocalUser and the password-never-expires flag from Win32_UserAccount.
+        The age is measured on the guest clock, which is the clock Windows uses to decide expiry.
+        age_seconds is null when the password has never been set.
+        The plugin uses the result to tell whether a maximum password age would expire the password Packer logs on with.
+
+    .PARAMETER UserSid
+        The SID of the local account.
+
+    .EXAMPLE
+        Get-SWLocalPasswordStatus -UserSid (Get-SWSessionIdentity).user_sid
+
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject with age_seconds and never_expires.
+
+    .NOTES
+        Author  : Lars Krogh
+        Version : 1.0.0
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidatePattern('^S-1-[0-9-]+$')]
+        [string]$UserSid
+    )
+    $user = Get-LocalUser -SID $UserSid -ErrorAction Stop
+    $account = Get-CimInstance -ClassName Win32_UserAccount -Filter "LocalAccount = TRUE AND SID = '$UserSid'" -ErrorAction Stop |
+        Select-Object -First 1
+    if ($null -eq $account) {
+        throw "Local account $UserSid was not found in Win32_UserAccount"
+    }
+    $ageSeconds = $null
+    if ($null -ne $user.PasswordLastSet) {
+        $ageSeconds = [long][Math]::Floor(((Get-Date) - $user.PasswordLastSet).TotalSeconds)
+    }
+    [PSCustomObject]@{
+        age_seconds   = $ageSeconds
+        never_expires = -not [bool]$account.PasswordExpires
     }
 }
 
@@ -347,7 +393,7 @@ function Get-SWSystemFacts {
         Collects all guest facts for the Detect action.
 
     .DESCRIPTION
-        Gathers operating system, domain, roles, session, WinRM, WinRM connections and firewall state.
+        Gathers operating system, domain, roles, session, the password status of a local session account, WinRM, WinRM connections and firewall state.
         Optional collection failures are added to the errors list so the plugin can treat them as unknown and fail closed.
         Object sections become null; connection and role lists become empty arrays.
         Operating system and session failures stop the action.
@@ -361,7 +407,7 @@ function Get-SWSystemFacts {
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.1.0
+        Version : 1.2.0
     #>
     [CmdletBinding()]
     param()
@@ -383,15 +429,20 @@ function Get-SWSystemFacts {
         $ports = @($winrm.listeners | ForEach-Object { $_.port } | Sort-Object -Unique)
         $connections = & $collect 'winrm_connections' { @(Get-SWWinRMConnection -Port $ports) }
     }
+    $session = Get-SWSessionIdentity
+    $sessionPassword = $null
+    if ($session.is_local_account) {
+        $sessionPassword = & $collect 'session_password' { Get-SWLocalPasswordStatus -UserSid $session.user_sid }
+    }
     [PSCustomObject]@{
         os                = $os
         domain            = & $collect 'domain' { Get-SWDomainMembership }
         roles             = @(& $collect 'roles' { Get-SWInstalledRole -ProductType $os.product_type } | Where-Object { $null -ne $_ })
-        session           = Get-SWSessionIdentity
+        session           = $session
+        session_password  = $sessionPassword
         winrm             = $winrm
         winrm_connections = @($connections | Where-Object { $null -ne $_ })
         firewall          = & $collect 'firewall' { Get-SWFirewallState }
         errors            = @($errors)
     }
-
 }

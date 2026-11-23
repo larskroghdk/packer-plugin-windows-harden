@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/larskroghdk/packer-plugin-windows-harden/internal/baseline"
 	"github.com/larskroghdk/packer-plugin-windows-harden/internal/facts"
@@ -44,6 +45,7 @@ const (
 	keyLmCompatibilityLevel     = `system\currentcontrolset\control\lsa\lmcompatibilitylevel`
 	keyNTLMMinServerSec         = `system\currentcontrolset\control\lsa\msv1_0\ntlmminserversec`
 	keyFirewallPolicies         = `software\policies\microsoft\windowsfirewall\`
+	passwordExpiryMargin        = 24 * time.Hour
 )
 
 var firewallProfileKeys = map[string]string{
@@ -70,7 +72,7 @@ func registryKey(r *baseline.RegistryValue) string {
 //   - map[string]Decision: One decision per setting ID in changes.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func Protect(changes []baseline.Setting, ctx Context) map[string]Decision {
 	out := make(map[string]Decision, len(changes))
 	for _, s := range changes {
@@ -91,6 +93,8 @@ func Protect(changes []baseline.Setting, ctx Context) map[string]Decision {
 			d = registryRule(s.Registry, ctx)
 		case baseline.KindUserRight:
 			d = userRightRule(s.UserRight, ctx)
+		case baseline.KindAccountPolicy:
+			d = accountPolicyRule(s.AccountPolicy, ctx)
 		}
 		if d != nil {
 			out[s.ID] = *d
@@ -252,6 +256,41 @@ func userRightRule(u *baseline.UserRight, ctx Context) *Decision {
 	return nil
 }
 
+// accountPolicyRule defers a maximum password age that would expire the
+// password of the local account Packer logs on with, either now or within
+// passwordExpiryMargin. Local password policy does not apply to domain
+// accounts, and a value of 0 means passwords never expire.
+//
+// Returns:
+//   - *Decision: The decision, or nil when no rule objects to the change.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func accountPolicyRule(a *baseline.AccountPolicy, ctx Context) *Decision {
+	if !strings.EqualFold(a.Name, "MaximumPasswordAge") || !ctx.Facts.Session.IsLocalAccount {
+		return nil
+	}
+	days, err := strconv.ParseInt(a.Value, 10, 32)
+	if err != nil || days <= 0 {
+		return nil
+	}
+	user := ctx.Facts.Session.UserName
+	password := ctx.Facts.SessionPassword
+	switch {
+	case password == nil:
+		return deferred("the password status of local account %s could not be inspected; a maximum password age of %d days could expire the password Packer logs on with", user, days)
+	case password.NeverExpires:
+		return nil
+	case password.AgeSeconds == nil:
+		return deferred("the password of local account %s has never been set; a maximum password age of %d days could block Packer's next WinRM logon", user, days)
+	}
+	age := time.Duration(*password.AgeSeconds) * time.Second
+	if age+passwordExpiryMargin >= time.Duration(days)*24*time.Hour {
+		return deferred("the password of local account %s was set %d days ago; a maximum password age of %d days would expire it and reject Packer's next WinRM logon", user, int64(age.Hours()/24), days)
+	}
+	return nil
+}
+
 type uacModel struct {
 	session facts.Session
 	values  map[string]uint64
@@ -322,7 +361,6 @@ func (m *uacModel) decide(key, data string) Decision {
 	if m.filtered(candidate) {
 		return *deferred("Packer authenticates as local account %s; with this value remote UAC would give WinRM sessions a filtered, non-elevated token (EnableLUA=%d, LocalAccountTokenFilterPolicy=%d, FilterAdministratorToken=%d, built-in Administrator=%t)",
 			m.session.UserName, candidate[keyEnableLUA], candidate[keyLocalAccountTokenFilter], candidate[keyFilterAdministratorToken], m.session.IsBuiltinAdmin)
-
 	}
 	m.values = candidate
 	return Decision{Action: ActionApply}

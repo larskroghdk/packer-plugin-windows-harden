@@ -22,6 +22,7 @@ Some baseline settings would cut off the session Packer uses to finish the build
 | Firewall `AllowLocalPolicyMerge = 0` | The profile carries the WinRM connection. Local rules, including the WinRM rule, would be ignored. |
 | `SeDenyNetworkLogonRight` | It names a SID in the Packer session token |
 | `SeNetworkLogonRight` | It doesn't grant any SID in the Packer session token |
+| `MaximumPasswordAge` | Packer logs on as a local account whose password doesn't have "never expires" set and would expire within a day under the new maximum age, or whose password status couldn't be read |
 
 🛡️ Two settings, `LmCompatibilityLevel` and `NtlmMinServerSec`, are **guarded** when Negotiate authentication is enabled. Whether the Packer client meets the new NTLM requirements can't be determined from the guest. Missing WinRM authentication facts defer these settings.
 

@@ -332,6 +332,54 @@ func TestProtectGuardAndBlankPassword(t *testing.T) {
 	}
 }
 
+// TestProtectMaximumPasswordAge checks that a maximum password age is deferred
+// when it would expire the local Packer account's password within a day, when
+// the password status is unknown, and when it was never set, and that it is
+// applied otherwise.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestProtectMaximumPasswordAge(t *testing.T) {
+	maxAge := baseline.Setting{
+		ID: baseline.AccountPolicyID("MaximumPasswordAge"), Kind: baseline.KindAccountPolicy,
+		Description: "test", Component: "test",
+		AccountPolicy: &baseline.AccountPolicy{Name: "MaximumPasswordAge", Value: "60"},
+	}
+	days := func(n int64) *int64 { s := n * 24 * 60 * 60; return &s }
+	cases := []struct {
+		name     string
+		local    bool
+		password *facts.PasswordStatus
+		value    string
+		want     Action
+	}{
+		{"recent password", true, &facts.PasswordStatus{AgeSeconds: days(10)}, "60", ActionApply},
+		{"expires within the margin", true, &facts.PasswordStatus{AgeSeconds: days(59)}, "60", ActionDefer},
+		{"already past the new age", true, &facts.PasswordStatus{AgeSeconds: days(90)}, "60", ActionDefer},
+		{"never expires", true, &facts.PasswordStatus{AgeSeconds: days(90), NeverExpires: true}, "60", ActionApply},
+		{"never set", true, &facts.PasswordStatus{}, "60", ActionDefer},
+		{"unknown status", true, nil, "60", ActionDefer},
+		{"unlimited age", true, nil, "0", ActionApply},
+		{"domain account", false, nil, "60", ActionApply},
+	}
+	for _, c := range cases {
+		f := packerFacts()
+		f.Session.IsLocalAccount = c.local
+		f.SessionPassword = c.password
+		s := maxAge
+		s.AccountPolicy = &baseline.AccountPolicy{Name: "MaximumPasswordAge", Value: c.value}
+		if d := decide(t, f, nil, s); d.Action != c.want {
+			t.Errorf("%s: %v (%s), want %v", c.name, d.Action, d.Reason, c.want)
+		}
+	}
+	other := maxAge
+	other.ID = baseline.AccountPolicyID("MinimumPasswordAge")
+	other.AccountPolicy = &baseline.AccountPolicy{Name: "MinimumPasswordAge", Value: "1"}
+	if d := decide(t, packerFacts(), nil, other); d.Action != ActionApply {
+		t.Errorf("MinimumPasswordAge: %v, want apply", d.Action)
+	}
+}
+
 // TestProtectUnknownUAC distinguishes absent Windows defaults from missing,
 // failed, or mistyped inspections of FilterAdministratorToken.
 //

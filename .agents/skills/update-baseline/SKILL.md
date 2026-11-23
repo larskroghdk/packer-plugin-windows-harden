@@ -23,7 +23,7 @@ For a lifecycle-only correction, use steps 1, 4, 5 and 7; package specification,
 5. **Update the tests:**
    - `TestCatalogSelect` (internal/baseline/catalog_test.go): add the new `(product_type, build) → id`. If a build moved to a new baseline ID, change its expected ID.
    - `TestClassify` (internal/facts/facts_test.go): add the new release.
-6. **Review the generated JSON diff.** For a refresh, check that the setting count and removed or changed settings match Microsoft's change log. Check that every new protection-sensitive setting is covered by an existing rule in `internal/plan/protect.go`: WinRM, UAC, NTLM, firewall, or network-logon rights. If one isn't, follow [add-protection-rule](../add-protection-rule/SKILL.md). If extending a setting kind or registry type, update model validation, generator, comparison and guest reads/writes together.
+6. **Review the generated JSON diff.** For a refresh, check that the setting count and removed or changed settings match Microsoft's change log. Check that every new protection-sensitive setting is covered by an existing rule in `internal/plan/protect.go`: WinRM, UAC, NTLM, firewall, network-logon rights, or password expiry. If one isn't, follow [add-protection-rule](../add-protection-rule/SKILL.md). If extending a setting kind or registry type, update model validation, generator, comparison and guest reads/writes together.
 7. **Run `make check`**, then update the supported-OS table in `README.md`.
 
 ## Done when

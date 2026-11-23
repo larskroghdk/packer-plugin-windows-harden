@@ -1,6 +1,6 @@
 ---
 name: add-protection-rule
-description: Add or change a WinRM protection rule in internal/plan/protect.go for a baseline setting that could lock Packer out of the guest (authentication, transport, firewall, UAC, logon rights). Use when a build loses WinRM after hardening or a new baseline introduces such a setting.
+description: Add or change a WinRM protection rule in internal/plan/protect.go for a baseline setting that could lock Packer out of the guest (authentication, transport, firewall, UAC, logon rights, password expiry). Use when a build loses WinRM after hardening or a new baseline introduces such a setting.
 ---
 
 # Add a protection rule
@@ -25,7 +25,7 @@ If the rule needs guest data that isn't collected yet:
 
 ## 3. Write the rule
 
-- Registry settings: add a lower-case `path\name` constant and a `case` in `registryRule`. User rights: add a `case` in `userRightRule`.
+- Registry settings: add a lower-case `path\name` constant and a `case` in `registryRule`. User rights: add a `case` in `userRightRule`. Account policies: extend `accountPolicyRule`.
 - Use `deferred(...)` with a reason that names the setting's effect on the Packer session. The reason appears verbatim in the report.
 - UAC-related values go through `uacModel`, not a standalone case. Distinguish an inspected absent value from an unreadable one.
 - For a guarded decision, inspect `provisioner/guard.go` and `guest/scripts/SecureWindows.Guard.ps1`. The snapshot must be restorable and acknowledged before application; cleanup must preserve a guard that may still be armed.

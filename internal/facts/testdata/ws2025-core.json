@@ -40,6 +40,10 @@
       "S-1-5-64-10"
     ]
   },
+  "session_password": {
+    "age_seconds": 86400,
+    "never_expires": false
+  },
   "winrm": {
     "service_status": "Running",
     "service_start": "Automatic",

@@ -36,10 +36,10 @@ func TestUnknownConnectionProtectsEveryFirewallProfile(t *testing.T) {
 }
 
 // TestParseSample decodes a captured Server Core Detect result and checks the
-// derived OS, session, firewall and transport facts.
+// derived OS, session, password status, firewall and transport facts.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func TestParseSample(t *testing.T) {
 	data, err := os.ReadFile("testdata/ws2025-core.json")
 	if err != nil {
@@ -54,6 +54,9 @@ func TestParseSample(t *testing.T) {
 	}
 	if !f.Session.IsBuiltinAdmin || !f.Session.TokenSIDs()["S-1-5-114"] {
 		t.Errorf("unexpected session: %+v", f.Session)
+	}
+	if p := f.SessionPassword; p == nil || p.AgeSeconds == nil || *p.AgeSeconds != 86400 || p.NeverExpires {
+		t.Errorf("unexpected session password status: %+v", p)
 	}
 	profiles, fromConnections := f.ActiveFirewallProfiles()
 	if !fromConnections || !profiles["Public"] || len(profiles) != 1 {
