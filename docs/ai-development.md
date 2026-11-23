@@ -110,7 +110,7 @@ The authoritative controls are on GitHub:
 
 ## Testing the workflow
 
-`make test-ai` runs [test/ai/AgentWorkflow.Tests.ps1](../test/ai/AgentWorkflow.Tests.ps1). Each test builds a throwaway repository with a bare remote in Pester's TestDrive and puts [FakeAgent.ps1](../test/ai/FakeAgent.ps1) on PATH as `codex`, `gemini` and `copilot`. The tests make real commits and pushes and cover approval, rejection, a high finding with an approve verdict, Codex failure, malformed answers, timeouts, a missing CLI, failing checks, unstaged edits, approval reuse and invalidation, nested agents, the write lock, pushes with missing or rejected reviews, Gemini plan mode, caching, file changes and API errors, Copilot scope, deny rules and commits, and the environment check. They make no network calls.
+`make test-ai` runs [test/ai/AgentWorkflow.Tests.ps1](../test/ai/AgentWorkflow.Tests.ps1). Each test builds a throwaway repository with a bare remote in Pester's TestDrive and puts [FakeAgent.ps1](../test/ai/FakeAgent.ps1) on PATH as `codex`, `gemini` and `copilot`. The tests make real commits and pushes and cover approval, rejection, a high finding with an approve verdict, Codex failure, malformed answers, timeouts, a missing CLI, failing checks, unstaged edits, approval reuse and invalidation, nested agents, the write lock, pushes with missing or rejected reviews, amended commits, damaged review records, a process that never reads its input, Gemini plan mode, caching and its invalidation by local edits, file changes and API errors, Copilot scope, deny rules and commits, and the environment check. They make no network calls.
 
 ## Troubleshooting
 
@@ -127,3 +127,4 @@ The authoritative controls are on GitHub:
 | `started by an agent process` | An agent tried to commit or start another agent. Return the result to Claude and commit from there. |
 | Gemini exits with code 55 | The workspace is not trusted; the script passes `--skip-trust`, so check that you run a current Gemini CLI. |
 | `Gemini changed files during read-only research` | Inspect `git status`, revert the listed files and report the run. |
+| `ai-snapshot-*` folders left in the temp directory | A commit or check run was killed before it could clean up. Delete them when no commit is running. |

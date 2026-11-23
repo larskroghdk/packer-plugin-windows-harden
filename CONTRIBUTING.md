@@ -45,6 +45,8 @@ CI snapshots and releases use the official prebuilt GoReleaser action. Local pac
 
 The [skill collection](docs/agent-skills.md) covers development, review, releases and baseline safety. Edit shared workflows only in `.agents/skills`; there are no per-tool copies to keep in sync. Validate metadata, local links and trigger scope when changing a skill. Shared coding rules remain in `INVARIANTS.md` and module guides rather than copied into every skill.
 
+The maintainer's agent workflow, with its Codex review before each commit, is described in [docs/ai-development.md](docs/ai-development.md). Its Git hooks are opt-in: nothing runs until you install them, and CI runs the same checks on every pull request either way.
+
 ## 🔐 WinRM protection rules
 
 A setting that could break the Packer session needs a rule in `internal/plan/protect.go`, and that rule must fail closed when guest state is unknown. See [.agents/skills/add-protection-rule/SKILL.md](.agents/skills/add-protection-rule/SKILL.md) and [docs/winrm-protection.md](docs/winrm-protection.md).
