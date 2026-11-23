@@ -42,7 +42,7 @@ function Write-AIMessage {
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory, Position = 0)]
+        [Parameter(Mandatory)]
         [AllowEmptyString()]
         [string]$Message
     )
@@ -55,7 +55,8 @@ function Invoke-AIProcess {
         Runs a program with a timeout and captures its output.
 
     .DESCRIPTION
-        Starts the program without a shell, passes each argument separately, writes the input text to standard input and closes it, and reads standard output and error as UTF-8. When the timeout passes, also while the input is still being written to a process that does not read it, the process tree is killed before standard input is closed. A process that is still running when the function fails is killed as well.
+        Starts the program without a shell, passes each argument separately, writes the input text to standard input and closes it, and reads standard output and error as UTF-8. When the timeout passes, also while the input is still being written to a process that does not read it, the process tree is killed before standard input is closed.
+        A process that is still running when the function fails is killed as well.
         Agent processes get AI_AGENT_ACTIVE=1 in their environment, so a workflow script that they start refuses to run.
 
     .PARAMETER FilePath
@@ -65,10 +66,12 @@ function Invoke-AIProcess {
         The arguments, each passed as one argument.
 
     .PARAMETER InputText
-        Text for standard input. Standard input is closed without data when omitted.
+        Text for standard input.
+        Standard input is closed without data when omitted.
 
     .PARAMETER WorkingDirectory
-        The working directory. Defaults to the current location.
+        The working directory.
+        Defaults to the current location.
 
     .PARAMETER TimeoutSeconds
         How long the process may run.
@@ -401,7 +404,6 @@ function Get-AIChangeset {
     param(
         [Parameter(Mandatory)]
         [string]$RepositoryRoot,
-
         [string]$Commit
     )
     $isMerge = $false
@@ -700,7 +702,8 @@ function Test-AIApprovedPath {
 
     .DESCRIPTION
         Loads every stored review that approves its own changeset under Test-AIApproval and searches for a chain of them from the base tree to the result tree.
-        A commit whose own changeset was reviewed passes with a chain of one. An amended commit passes when the original commit and the amendment were both approved, because each step was reviewed on the complete resulting tree.
+        A commit whose own changeset was reviewed passes with a chain of one.
+        An amended commit passes when the original commit and the amendment were both approved, because each step was reviewed on the complete resulting tree.
         Records that cannot be read, are not objects, lack a field, or whose file name, changeset and trees disagree are ignored, so a damaged record never blocks other approvals.
 
     .PARAMETER RepositoryRoot
