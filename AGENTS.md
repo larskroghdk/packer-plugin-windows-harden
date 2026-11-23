@@ -79,4 +79,4 @@ Task procedures live in `.agents/skills/<name>/SKILL.md`. Read only the one that
 - [update-baseline](.agents/skills/update-baseline/SKILL.md): add or refresh a Microsoft baseline, or correct lifecycle data.
 - [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md): a baseline setting that could break the Packer session.
 
-Activating a skill grants no extra authority to publish or to operate on a guest. See [docs/agent-skills.md](docs/agent-skills.md) for how each tool discovers these files.
+Activating a skill grants no extra authority to publish or to operate on a guest. See [docs/agent-guidance.md](docs/agent-guidance.md) for how each tool discovers these files.
