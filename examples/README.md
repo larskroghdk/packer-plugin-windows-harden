@@ -42,7 +42,7 @@ notepad examples/local/local.pkrvars.hcl
 ./examples/local/Test-Local.ps1
 ```
 
-Run the script from PowerShell with Go and Packer on PATH. Set `host`, `username` and `password` in `local.pkrvars.hcl`, which git ignores. The script builds and installs the development plugin (`0.1.0-dev`) into an isolated `dist/local-test/plugins` directory and validates the template before running it. It restores the caller's plugin path and working directory afterward. The report is written to `examples/local/reports/local.json`; failed settings cause the script to fail.
+Run the script from PowerShell with Go and Packer on PATH. Set `host`, `username` and `password` in `local.pkrvars.hcl`, which git ignores. The script builds and installs the plugin at the version in `main.go` (for example `0.1.0`) into an isolated `dist/local-test/plugins` directory and validates the template before running it. It restores the caller's plugin path and working directory afterward. The report is written to `examples/local/reports/local.json`; failed settings cause the script to fail.
 
 Use `-ValidateOnly` to check the local build and template without connecting to a target. Use `-VarFile <path>` for another `.hcl` or `.json` variable file. Relative variable-file paths are resolved from your current directory.
 

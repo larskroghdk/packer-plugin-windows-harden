@@ -139,10 +139,10 @@ type Input struct {
 }
 
 // Build assembles the report from what the run produced, including when the
-// run failed early.
+// run failed early. List fields are always arrays in the JSON, never null.
 //
 // Author: Lars Krogh
-// Version: 1.1.0
+// Version: 1.2.0
 func Build(in Input) *Report {
 	r := &Report{
 		SchemaVersion: SchemaVersion,
@@ -151,9 +151,9 @@ func Build(in Input) *Report {
 		FinishedAt:    in.FinishedAt.UTC(),
 		DryRun:        in.DryRun,
 		Mode:          in.Mode,
-		Connectivity:  in.Connectivity,
+		Connectivity:  append([]Check{}, in.Connectivity...),
 		Reboot:        in.Reboot,
-		Warnings:      in.Warnings,
+		Warnings:      append([]string{}, in.Warnings...),
 		Settings:      []Setting{},
 		DeferredPlan:  []baseline.Setting{},
 	}
@@ -357,7 +357,6 @@ func (r *Report) settingsWithStatus(status plan.Status) []Setting {
 	var out []Setting
 	for _, s := range r.Settings {
 		if s.Status == string(status) {
-
 			out = append(out, s)
 		}
 	}

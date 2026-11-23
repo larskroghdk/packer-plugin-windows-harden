@@ -132,7 +132,6 @@ func parseLGPOText(text string) ([]lgpoRegistryEntry, error) {
 			return nil, fmt.Errorf("unsupported LGPO action %q", action)
 		}
 		out = append(out, lgpoRegistryEntry{Key: key, Value: value, Type: regType, Data: data})
-
 	}
 	return out, nil
 }

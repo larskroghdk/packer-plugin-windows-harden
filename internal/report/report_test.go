@@ -32,3 +32,20 @@ func TestTerminalFailurePreventsCompliance(t *testing.T) {
 		t.Fatalf("report JSON = %s, %v", data, err)
 	}
 }
+
+// TestEarlyFailureKeepsListsAsArrays checks that a run that fails before any
+// check or warning still writes empty JSON arrays instead of null.
+//
+// Author: Lars Krogh
+// Version: 1.0.0
+func TestEarlyFailureKeepsListsAsArrays(t *testing.T) {
+	data, err := Build(Input{Error: errors.New("upload failed")}).JSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{`"connectivity": []`, `"warnings": []`, `"settings": []`, `"deferred_plan": []`} {
+		if !strings.Contains(string(data), field) {
+			t.Errorf("report JSON lacks %s:\n%s", field, data)
+		}
+	}
+}

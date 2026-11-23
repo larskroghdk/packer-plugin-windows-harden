@@ -135,7 +135,6 @@ func Compare(s baseline.Setting, st State) Comparison {
 		}
 	case baseline.KindUserRight:
 		if st.Present && normalizeSIDs(st.value()) == normalizeSIDs(strings.Join(s.UserRight.SIDs, ",")) {
-
 			return Match
 		}
 	case baseline.KindAccountPolicy:

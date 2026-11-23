@@ -345,7 +345,6 @@ func (r *run) inspect(ctx context.Context, settings []baseline.Setting) (plan.St
 // Author: Lars Krogh
 // Version: 1.0.0
 func (r *run) apply(ctx context.Context, settings []baseline.Setting) (plan.ApplyResults, error) {
-
 	data, err := r.remote.action(ctx, "Apply", settings)
 	if err != nil {
 		return nil, err

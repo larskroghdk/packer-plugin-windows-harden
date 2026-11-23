@@ -299,5 +299,4 @@ func decodeZipXML(f *zip.File, v any) error {
 	}
 	defer rc.Close()
 	return xml.NewDecoder(rc).Decode(v)
-
 }

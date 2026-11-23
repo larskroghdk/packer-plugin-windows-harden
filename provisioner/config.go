@@ -46,7 +46,6 @@ type Config struct {
 // Author: Lars Krogh
 // Version: 1.0.0
 func (c *Config) prepare(catalog *baseline.Catalog, raws ...any) error {
-
 	err := config.Decode(c, &config.DecodeOpts{
 		PluginType:         "windows-harden",
 		Interpolate:        true,

@@ -158,5 +158,4 @@ func (r *remote) upload(name string, v any) (string, error) {
 		return "", fmt.Errorf("upload %s: %w", name, err)
 	}
 	return remotePath, nil
-
 }

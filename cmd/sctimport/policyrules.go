@@ -71,7 +71,6 @@ func (rules *policyRules) components() map[string]bool {
 		out[e.PolicyName] = true
 	}
 	for _, e := range rules.AuditSubcategory {
-
 		out[e.PolicyName] = true
 	}
 	return out
