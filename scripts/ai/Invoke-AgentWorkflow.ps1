@@ -7,7 +7,7 @@
 .DESCRIPTION
     PreCommit runs the deterministic checks and the Codex review for the staged changes and blocks the commit unless the exact staged changeset is approved.
     It refuses while another agent holds the write lock, and when it was started by an agent process.
-    PrePush reads the refs that Git is about to push from standard input and blocks the push unless every outgoing non-merge commit has an approving review record for exactly its changeset.
+    PrePush reads the refs that Git is about to push from standard input and blocks the push unless every outgoing non-merge commit is covered by approving review records: either one for exactly its changeset, or a chain of approved changesets from its parent tree to its tree, as an amended commit has.
     It does not start a review itself.
 
     Status shows whether the staged changes are approved.
@@ -30,7 +30,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 
@@ -152,8 +152,7 @@ try {
                 if ($changeset.IsMerge -or $changeset.BaseTree -eq $changeset.Tree) {
                     continue
                 }
-                $record = Get-AIReviewRecord -RepositoryRoot $root -Changeset $changeset
-                if (-not (Test-AIApproval -Record $record -Changeset $changeset -BlockingSeverities $settings.Codex.BlockingSeverities)) {
+                if (-not (Test-AIApprovedPath -RepositoryRoot $root -Changeset $changeset -BlockingSeverities $settings.Codex.BlockingSeverities)) {
                     $commit
                 }
             }

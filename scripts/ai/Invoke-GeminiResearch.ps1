@@ -9,7 +9,7 @@
     The question goes through standard input, never the command line.
     The working tree is fingerprinted before and after the call, and the script fails if any file changed, so a research run can never modify the repository unnoticed.
 
-    Answers are cached per question, model and HEAD tree for the configured number of days, so repeating a question costs nothing.
+    Answers are cached per question, model and working-tree content (staged, unstaged and untracked files) for the configured number of days, so repeating a question costs nothing.
     Token counts, and costs when rates are configured in settings.psd1, are printed and logged to <git common dir>/ai/usage.jsonl.
 
     Gemini uses the authentication configured for the CLI.
@@ -36,7 +36,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 
@@ -68,8 +68,8 @@ try {
     if (-not $Model) {
         $Model = $settings.Gemini.Model
     }
-    $head = Invoke-AIGit -ArgumentList 'rev-parse', '--verify', '--quiet', 'HEAD^{tree}' -WorkingDirectory $root -AllowFailure
-    $keyText = "$Model`n$head`n$Question"
+    $workingTree = Get-AIWorkingTreeId -RepositoryRoot $root
+    $keyText = "$Model`n$workingTree`n$Question"
     $key = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($keyText))).ToLowerInvariant()
     $cachePath = Join-Path (Get-AIStateDirectory -RepositoryRoot $root -Name 'research') "$key.json"
     if (-not $Refresh -and (Test-Path -LiteralPath $cachePath) -and (Get-Item -LiteralPath $cachePath).LastWriteTimeUtc -gt [DateTime]::UtcNow.AddDays(-$settings.Gemini.CacheDays)) {
@@ -94,7 +94,7 @@ $Question
     if ($Model) {
         $arguments += @('-m', $Model)
     }
-    $before = Get-AIWorkingTreeId -RepositoryRoot $root
+    $before = $workingTree
     $result = $null
     $failure = $null
     for ($attempt = 1; $attempt -le $settings.Gemini.MaxAttempts -and -not $result; $attempt++) {
@@ -148,7 +148,7 @@ $Question
     if (-not $result) {
         throw "Gemini research failed. $failure"
     }
-    $cache = [ordered]@{ question = $Question; model = $Model; head_tree = $head; answered_at = [DateTime]::UtcNow.ToString('o'); response = $result }
+    $cache = [ordered]@{ question = $Question; model = $Model; working_tree = $workingTree; answered_at = [DateTime]::UtcNow.ToString('o'); response = $result }
     Set-Content -LiteralPath $cachePath -Value ($cache | ConvertTo-Json -Depth 3) -Encoding utf8NoBOM
     $result
     exit 0

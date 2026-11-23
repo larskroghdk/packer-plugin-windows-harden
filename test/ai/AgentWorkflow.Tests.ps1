@@ -13,7 +13,7 @@
 
 .NOTES
     Author  : Lars Krogh
-    Version : 1.0.0
+    Version : 1.1.0
 #>
 
 
@@ -89,6 +89,9 @@ BeforeAll {
         $null = New-Item -ItemType Directory -Path (Join-Path $repo 'scripts/ai'), (Join-Path $repo '.githooks')
         Copy-Item -Path (Join-Path $sourceRoot 'scripts/ai/*') -Destination (Join-Path $repo 'scripts/ai')
         Copy-Item -Path (Join-Path $sourceRoot '.githooks/*') -Destination (Join-Path $repo '.githooks')
+        if (-not $IsWindows) {
+            & chmod +x (Join-Path $repo '.githooks/pre-commit') (Join-Path $repo '.githooks/pre-push')
+        }
         $settings = @"
 @{
     Codex = @{ Command = '$CodexCommand'; Model = ''; TimeoutSeconds = 20; MaxAttempts = 1; MaxDiffBytes = 100000; BlockingSeverities = @('critical', 'high') }
@@ -323,6 +326,20 @@ Describe 'Pre-commit Codex gate' {
     }
 }
 
+Describe 'Process runner' {
+    BeforeAll {
+        . (Join-Path $sourceRoot 'scripts/ai/AgentTools.ps1')
+    }
+    It 'kills a process that never reads its input when the timeout passes' {
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $result = Invoke-AIProcess -FilePath $pwshPath -ArgumentList '-NoProfile', '-Command', 'Start-Sleep -Seconds 60' -InputText ('x' * 8MB) -TimeoutSeconds 2
+        $watch.Stop()
+        $result.TimedOut | Should -BeTrue
+        $result.ExitCode | Should -BeNullOrEmpty
+        $watch.Elapsed.TotalSeconds | Should -BeLessThan 30
+    }
+}
+
 Describe 'Pre-push verification' {
     BeforeEach {
         New-TestRepository
@@ -338,6 +355,24 @@ Describe 'Pre-push verification' {
         $allowed = Invoke-Git push origin main
         $allowed.ExitCode | Should -Be 0 -Because $allowed.Output
         $allowed.Output | Should -Match 'every outgoing commit is approved'
+    }
+    It 'allows a push of an amended commit when the commit and the amendment were both approved' {
+        Set-StagedChange -Name 'main.txt' -Content 'first'
+        (Invoke-Git commit -q -m 'first').ExitCode | Should -Be 0
+        Set-StagedChange -Name 'main.txt' -Content 'amended'
+        (Invoke-Git commit -q --amend -m 'amended').ExitCode | Should -Be 0
+        $pushed = Invoke-Git push origin main
+        $pushed.ExitCode | Should -Be 0 -Because $pushed.Output
+        (Get-AgentCall -Agent codex).Count | Should -Be 2
+    }
+    It 'blocks a push of an amended commit when the original commit was not reviewed' {
+        Set-StagedChange -Name 'main.txt' -Content 'first'
+        $null = Invoke-Git commit -q --no-verify -m 'first'
+        Set-StagedChange -Name 'main.txt' -Content 'amended'
+        (Invoke-Git commit -q --amend -m 'amended').ExitCode | Should -Be 0
+        $blocked = Invoke-Git push origin main
+        $blocked.ExitCode | Should -Not -Be 0
+        $blocked.Output | Should -Match 'not approved'
     }
     It 'blocks a push of a new branch with a commit whose review was rejected' {
         $null = Invoke-Git switch -q -c feature
@@ -367,6 +402,14 @@ Describe 'Gemini research' {
         $second = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'How is WinRM protected?'
         $second.Output | Should -Match 'Cached Gemini answer'
         (Get-AgentCall -Agent gemini).Count | Should -Be 1
+    }
+    It 'asks again when the working tree changed after the cached answer' {
+        (Invoke-Script Invoke-GeminiResearch.ps1 -Question 'What does main.txt hold?').ExitCode | Should -Be 0
+        Set-Content -LiteralPath (Join-Path $repo 'notes.txt') -Value 'uncommitted edit'
+        $again = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'What does main.txt hold?'
+        $again.ExitCode | Should -Be 0 -Because $again.Output
+        $again.Output | Should -Not -Match 'Cached Gemini answer'
+        (Get-AgentCall -Agent gemini).Count | Should -Be 2
     }
     It 'fails when Gemini changes a file' {
         $env:FAKE_GEMINI_MODE = 'modify'

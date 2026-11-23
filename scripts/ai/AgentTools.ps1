@@ -28,7 +28,7 @@ function Invoke-AIProcess {
         Runs a program with a timeout and captures its output.
 
     .DESCRIPTION
-        Starts the program without a shell, passes each argument separately, writes the input text to standard input and closes it, and reads standard output and error as UTF-8. When the timeout passes, the process tree is killed.
+        Starts the program without a shell, passes each argument separately, writes the input text to standard input and closes it, and reads standard output and error as UTF-8. When the timeout passes, also while the input is still being written to a process that does not read it, the process tree is killed before standard input is closed. A process that is still running when the function fails is killed as well.
         Agent processes get AI_AGENT_ACTIVE=1 in their environment, so a workflow script that they start refuses to run.
 
     .PARAMETER FilePath
@@ -56,12 +56,11 @@ function Invoke-AIProcess {
         Invoke-AIProcess -FilePath git -ArgumentList 'status' -TimeoutSeconds 30
 
     .OUTPUTS
-        System.Management.Automation.PSCustomObject with ExitCode (null after a timeout),
-        TimedOut, StandardOutput and StandardError.
+        System.Management.Automation.PSCustomObject with ExitCode (null after a timeout), TimedOut, StandardOutput and StandardError.
 
     .NOTES
         Author  : Lars Krogh
-        Version : 1.0.0
+        Version : 1.1.0
     #>
     [CmdletBinding()]
     param(
@@ -96,6 +95,7 @@ function Invoke-AIProcess {
     }
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     $process = [Diagnostics.Process]::Start($startInfo)
+    $timedOut = $false
     try {
         $outputTask = $process.StandardOutput.ReadToEndAsync()
         $errorTask = $process.StandardError.ReadToEndAsync()
@@ -103,22 +103,32 @@ function Invoke-AIProcess {
         if ($PSBoundParameters.ContainsKey('InputText')) {
             $writeTask = $writer.WriteAsync($InputText)
             while (-not $writeTask.Wait(200)) {
-                if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
+                if ($process.HasExited) {
+                    break
+                }
+                if ([DateTime]::UtcNow -gt $deadline) {
+                    $timedOut = $true
                     break
                 }
             }
         }
-        try {
-            $writer.Dispose()
-        }
-        catch [IO.IOException] {
-            Write-Verbose "Standard input of $FilePath closed early."
-        }
-        $remaining = [Math]::Max(0, ($deadline - [DateTime]::UtcNow).TotalMilliseconds)
-        $timedOut = -not $process.WaitForExit([int]$remaining)
         if ($timedOut) {
             $process.Kill($true)
             $process.WaitForExit()
+        }
+        try {
+            $writer.Dispose()
+        }
+        catch [IO.IOException], [InvalidOperationException] {
+            Write-Verbose "Standard input of $FilePath closed before all input was written."
+        }
+        if (-not $timedOut) {
+            $remaining = [Math]::Max(0, ($deadline - [DateTime]::UtcNow).TotalMilliseconds)
+            $timedOut = -not $process.WaitForExit([int]$remaining)
+            if ($timedOut) {
+                $process.Kill($true)
+                $process.WaitForExit()
+            }
         }
         [PSCustomObject]@{
             ExitCode       = if ($timedOut) { $null } else { $process.ExitCode }
@@ -128,6 +138,10 @@ function Invoke-AIProcess {
         }
     }
     finally {
+        if (-not $process.HasExited) {
+            $process.Kill($true)
+            $process.WaitForExit()
+        }
         $process.Dispose()
     }
 }
@@ -650,6 +664,91 @@ function Test-AIApproval {
     }
     $blocking = @($Record.findings | Where-Object { $_.severity -in $BlockingSeverities })
     $blocking.Count -eq 0
+}
+
+function Test-AIApprovedPath {
+    <#
+    .SYNOPSIS
+        Tests whether approved reviews lead from a changeset's base tree to its result tree.
+
+    .DESCRIPTION
+        Loads every stored review that approves its own changeset under Test-AIApproval and searches for a chain of them from the base tree to the result tree.
+        A commit whose own changeset was reviewed passes with a chain of one. An amended commit passes when the original commit and the amendment were both approved, because each step was reviewed on the complete resulting tree.
+        Records whose file name, changeset and trees disagree are ignored.
+
+    .PARAMETER RepositoryRoot
+        The repository root.
+
+    .PARAMETER Changeset
+        The changeset from Get-AIChangeset.
+
+    .PARAMETER BlockingSeverities
+        Severities that block approval.
+
+    .EXAMPLE
+        Test-AIApprovedPath -RepositoryRoot $root -Changeset $changeset -BlockingSeverities 'critical', 'high'
+
+    .OUTPUTS
+        System.Boolean
+
+    .NOTES
+        Author  : Lars Krogh
+        Version : 1.0.0
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepositoryRoot,
+        [Parameter(Mandatory)]
+        [PSCustomObject]$Changeset,
+        [Parameter(Mandatory)]
+        [string[]]$BlockingSeverities
+    )
+    $edges = @{}
+    $directory = Get-AIStateDirectory -RepositoryRoot $RepositoryRoot -Name 'reviews'
+    foreach ($file in @(Get-ChildItem -LiteralPath $directory -Filter '*.json' -File)) {
+        try {
+            $record = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+        }
+        catch {
+            Write-Verbose "Ignoring unreadable review record $($file.Name)."
+            continue
+        }
+        $properties = $record.PSObject.Properties.Name
+        if ('base_tree' -notin $properties -or 'tree' -notin $properties -or 'changeset' -notin $properties) {
+            continue
+        }
+        $id = "$($record.base_tree)-$($record.tree)"
+        if ($record.changeset -ne $id -or $file.BaseName -ne $id) {
+            continue
+        }
+        if (-not (Test-AIApproval -Record $record -Changeset ([PSCustomObject]@{ Id = $id }) -BlockingSeverities $BlockingSeverities)) {
+            continue
+        }
+        if (-not $edges.ContainsKey($record.base_tree)) {
+            $edges[$record.base_tree] = [Collections.Generic.List[string]]::new()
+        }
+        $edges[$record.base_tree].Add($record.tree)
+    }
+    $visited = [Collections.Generic.HashSet[string]]::new()
+    $queue = [Collections.Generic.Queue[string]]::new()
+    $queue.Enqueue($Changeset.BaseTree)
+    $null = $visited.Add($Changeset.BaseTree)
+    while ($queue.Count -gt 0) {
+        $current = $queue.Dequeue()
+        if (-not $edges.ContainsKey($current)) {
+            continue
+        }
+        foreach ($next in $edges[$current]) {
+            if ($next -eq $Changeset.Tree) {
+                return $true
+            }
+            if ($visited.Add($next)) {
+                $queue.Enqueue($next)
+            }
+        }
+    }
+    $false
 }
 
 function Add-AIUsage {
