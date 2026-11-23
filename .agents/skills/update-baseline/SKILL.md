@@ -19,7 +19,7 @@ For a lifecycle-only correction, use steps 1, 4, 5 and 7; package specification,
    - `components` to enforce, and `excluded_components` with a `reason` for **every** other GPO in the package
    - `excluded_settings` with reasons, only for individual settings the plugin deliberately doesn't enforce
 3. **Generate:** `make baselines DOWNLOADS=<scratch dir>`. Fix every error by changing `sources.json`, or by extending the generator if the package has a construct it doesn't support yet. Never by editing the output.
-4. **Update lifecycle data only when needed** in `internal/facts/lifecycle.go` (`serverReleases` / `clientReleases`) using verified Microsoft Lifecycle dates. For clients, distinguish consumer and enterprise dates and editions. Classifying a release as supported does not establish that a baseline exists for it.
+4. **Update lifecycle data only when needed** in `internal/facts/lifecycle.go` (`serverReleases`, `clientReleases` and `ltscReleases`) using verified Microsoft Lifecycle dates. For clients, distinguish consumer and enterprise dates and editions. Client LTSC editions follow the fixed lifecycle of their LTSC release, with separate Enterprise and IoT Enterprise dates, and use the baseline of the general availability release Microsoft lists as equivalent. Classifying a release as supported does not establish that a baseline exists for it.
 5. **Update the tests:**
    - `TestCatalogSelect` (internal/baseline/catalog_test.go): add the new `(product_type, build) → id`. If a build moved to a new baseline ID, change its expected ID.
    - `TestClassify` (internal/facts/facts_test.go): add the new release.
