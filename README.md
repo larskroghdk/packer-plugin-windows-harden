@@ -12,16 +12,20 @@ A Packer provisioner that applies the Microsoft Security Compliance Toolkit base
 
 ## 💻 Supported operating systems
 
+Workgroup machines, the usual state of a Packer build VM, are the primary target. With `profile = "auto"` the plugin detects domain membership and applies Microsoft's non-domain-joined overrides to workgroup machines. Domain-joined machines are hardened too, with a warning that domain Group Policy takes precedence over the local settings. See [`profile`](docs/configuration.md).
+
 | Baseline ID | OS | Build |
 | --- | --- | --- |
-| `ws2019-member` | Windows Server 2019 (member server) | 17763 |
-| `ws2022` | Windows Server 2022 (member server) | 20348 |
-| `ws2025-2602` | Windows Server 2025 (member server) | 26100 |
-| `win11-24h2` | Windows 11 24H2 | 26100 |
+| `ws2019-member` | Windows Server 2019, workgroup or member server | 17763 |
+| `ws2022` | Windows Server 2022, workgroup or member server | 20348 |
+| `ws2025-2602` | Windows Server 2025, workgroup or member server | 26100 |
+| `win11-24h2` | Windows 11 24H2: Enterprise, Enterprise multi-session, Education and IoT Enterprise only, because Home and Pro reached end of updates on 2026-10-13 | 26100 |
 | `win11-25h2` | Windows 11 25H2 | 26200 |
 | `win11-26h2` | Windows 11 26H2 | 26300 |
 
-🚫 Domain controllers, LTSC editions and releases past end of support are rejected.
+A release is hardened only until its end of updates. The dates are in [lifecycle.go](internal/facts/lifecycle.go) and follow [Windows 11 release information](https://learn.microsoft.com/windows/release-health/windows11-release-information) and the Windows Server lifecycle.
+
+🚫 Domain controllers, LTSC editions, releases past end of updates, and releases without a baseline here (such as Windows Server 2016 and Windows 11 26H1) are rejected.
 
 ## 🚀 Usage
 
