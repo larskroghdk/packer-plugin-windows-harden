@@ -5,8 +5,8 @@
     Pester tests for SecureWindows.AuditPolicy.ps1.
 
 .DESCRIPTION
-    Covers subcategory lookup in an exported audit policy. auditpol.exe itself is not
-    called.
+    Covers subcategory lookup in an exported audit policy.
+    auditpol.exe itself is not called.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\AuditPolicy.Tests.ps1

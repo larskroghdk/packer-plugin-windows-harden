@@ -5,9 +5,8 @@
     Pester tests for the Invoke-SecureWindows.ps1 entry point.
 
 .DESCRIPTION
-    Runs the entry script in a child process, as the plugin does, and checks the JSON
-    contract, the exit codes and the UTF-8 encoding without a byte order mark. Windows
-    only.
+    Runs the entry script in a child process, as the plugin does, and checks the JSON contract, the exit codes and the UTF-8 encoding without a byte order mark.
+    Windows only.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\Invoke-SecureWindows.Tests.ps1
@@ -31,9 +30,8 @@ Describe 'Invoke-SecureWindows.ps1' -Skip:$notWindows {
                 Runs Invoke-SecureWindows.ps1 in a child process, as the plugin does.
 
             .DESCRIPTION
-                Writes the input object as JSON to the test drive and runs the entry script with
-                -File in the same PowerShell edition as the test. Returns the exit code and the path
-                of the output file.
+                Writes the input object as JSON to the test drive and runs the entry script with -File in the same PowerShell edition as the test.
+                Returns the exit code and the path of the output file.
 
             .PARAMETER Action
                 The guest action to run.
@@ -155,9 +153,9 @@ function Unregister-SWGuardTask { param([string]$TaskName) $true }
             $snapshotPath = Join-Path $TestDrive 'running-snapshot.json'
             New-SWGuardClaim -SnapshotPath $snapshotPath | Should -BeTrue
             $request = [PSCustomObject]@{
-                task_name = 'test-guard'
+                task_name     = 'test-guard'
                 snapshot_path = $snapshotPath
-                result_path = Join-Path $TestDrive 'not-finished.json'
+                result_path   = Join-Path $TestDrive 'not-finished.json'
             }
             (Invoke-Entry -Action 'DisarmGuard' -InputObject $request).ExitCode | Should -Be 1
         }

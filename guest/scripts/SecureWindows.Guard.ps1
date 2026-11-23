@@ -5,8 +5,8 @@
     Manages the scheduled task that rolls back guarded settings.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1. Registers and removes the one-time SYSTEM
-    task that runs the Rollback action if the plugin does not disarm it in time.
+    Dot-sourced by Invoke-SecureWindows.ps1.
+    Registers and removes the one-time SYSTEM task that runs the Rollback action if the plugin does not disarm it in time.
 
 .EXAMPLE
     . .\SecureWindows.Guard.ps1
@@ -23,8 +23,8 @@ function New-SWGuardClaim {
         Atomically claims a guard snapshot for rollback or disarming.
 
     .DESCRIPTION
-        Creates a sidecar file with CreateNew so that rollback and disarming cannot both
-        win. The file remains until the plugin removes its working directory.
+        Creates a sidecar file with CreateNew so that rollback and disarming cannot both win.
+        The file remains until the plugin removes its working directory.
 
     .PARAMETER SnapshotPath
         The guard snapshot path shared by the scheduled rollback and disarm request.
@@ -63,10 +63,10 @@ function Register-SWGuardTask {
         Schedules an automatic rollback of guarded registry changes.
 
     .DESCRIPTION
-        Registers a one-time scheduled task that runs as SYSTEM after the delay. The task runs
-        this script's Rollback action against the snapshot. Unless the plugin disarms it
-        first, the guarded settings return to their previous values even if WinRM is no
-        longer reachable. An existing task with the same name is replaced.
+        Registers a one-time scheduled task that runs as SYSTEM after the delay.
+        The task runs this script's Rollback action against the snapshot.
+        Unless the plugin disarms it first, the guarded settings return to their previous values even if WinRM is no longer reachable.
+        An existing task with the same name is replaced.
 
     .PARAMETER TaskName
         The task name in the root task folder. Letters, digits and hyphens only.
@@ -81,8 +81,8 @@ function Register-SWGuardTask {
         The snapshot JSON file uploaded by the plugin.
 
     .PARAMETER ResultPath
-        Where the rollback writes its result. The plugin checks for this file to tell whether
-        the rollback ran.
+        Where the rollback writes its result.
+        The plugin checks for this file to tell whether the rollback ran.
 
     .EXAMPLE
         Register-SWGuardTask -TaskName 'packer-windows-harden-guard-1' -DelaySeconds 180 -ScriptPath $script -SnapshotPath $snapshot -ResultPath $result

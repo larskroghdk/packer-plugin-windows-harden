@@ -5,9 +5,8 @@
     Collects the guest facts that the plugin uses to select a baseline and protect WinRM.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1. Reads operating system, domain membership,
-    server roles, session identity, WinRM configuration and connections, and firewall
-    state.
+    Dot-sourced by Invoke-SecureWindows.ps1.
+    Reads operating system, domain membership, server roles, session identity, WinRM configuration and connections, and firewall state.
 
 .EXAMPLE
     . .\SecureWindows.Facts.ps1
@@ -24,9 +23,8 @@ function Get-SWOperatingSystem {
         Collects the Windows version and edition details used to pick a baseline.
 
     .DESCRIPTION
-        Combines the CurrentVersion registry key with Win32_OperatingSystem. Values missing
-        from the registry are returned as null or 0, so the plugin can reject an unknown
-        build instead of guessing.
+        Combines the CurrentVersion registry key with Win32_OperatingSystem.
+        Values missing from the registry are returned as null or 0, so the plugin can reject an unknown build instead of guessing.
 
     .EXAMPLE
         (Get-SWOperatingSystem).build
@@ -69,8 +67,8 @@ function Get-SWDomainMembership {
         Reports whether the machine is joined to a domain.
 
     .DESCRIPTION
-        Reads Win32_ComputerSystem. The plugin uses the result to choose between the
-        domain-joined and non-domain-joined profile.
+        Reads Win32_ComputerSystem.
+        The plugin uses the result to choose between the domain-joined and non-domain-joined profile.
 
     .EXAMPLE
         (Get-SWDomainMembership).part_of_domain
@@ -98,12 +96,11 @@ function Get-SWInstalledRole {
         Lists the installed Windows Server roles.
 
     .DESCRIPTION
-        Returns the sorted names of installed server roles. Returns null on client editions,
-        or when Get-WindowsFeature is not available.
+        Returns the sorted names of installed server roles.
+        Returns null on client editions, or when Get-WindowsFeature is not available.
 
     .PARAMETER ProductType
-        Win32_OperatingSystem.ProductType: 1 for workstation, 2 for domain controller,
-        3 for server.
+        Win32_OperatingSystem.ProductType: 1 for workstation, 2 for domain controller, 3 for server.
 
     .EXAMPLE
         Get-SWInstalledRole -ProductType 3
@@ -135,9 +132,8 @@ function Get-SWSessionIdentity {
         Describes the account and token of the current WinRM session.
 
     .DESCRIPTION
-        Returns the user SID, the group SIDs in the token, and whether the session is a local
-        account, the built-in Administrator and elevated. The plugin uses these to work out
-        which settings would lock Packer out.
+        Returns the user SID, the group SIDs in the token, and whether the session is a local account, the built-in Administrator and elevated.
+        The plugin uses these to work out which settings would lock Packer out.
 
     .EXAMPLE
         (Get-SWSessionIdentity).is_elevated
@@ -178,9 +174,9 @@ function ConvertTo-SWBoolean {
         Converts a WSMan provider value to a Boolean.
 
     .DESCRIPTION
-        The WSMan: drive reports settings as the strings 'true' and 'false'. Only 'true'
-        (case-insensitive) converts to $true. Anything else, including an empty string,
-        converts to $false.
+        The WSMan: drive reports settings as the strings 'true' and 'false'.
+        Only 'true' (case-insensitive) converts to $true.
+        Anything else, including an empty string, converts to $false.
 
     .PARAMETER Value
         The string value read from the WSMan: drive.
@@ -211,9 +207,8 @@ function Get-SWWinRMConfiguration {
         Reads the WinRM service, listener and authentication configuration.
 
     .DESCRIPTION
-        Returns the service state, every listener, whether unencrypted traffic is allowed and
-        which authentication methods are enabled. The plugin compares this before and after a
-        change to confirm that WinRM did not regress.
+        Returns the service state, every listener, whether unencrypted traffic is allowed and which authentication methods are enabled.
+        The plugin compares this before and after a change to confirm that WinRM did not regress.
 
     .EXAMPLE
         (Get-SWWinRMConfiguration).auth.basic
@@ -267,9 +262,8 @@ function Get-SWWinRMConnection {
         Lists established TCP connections to the WinRM listener ports.
 
     .DESCRIPTION
-        For each connection, returns the local and remote address and the network category of
-        the interface carrying it. The plugin uses the category to tell which firewall
-        profile carries the Packer session.
+        For each connection, returns the local and remote address and the network category of the interface carrying it.
+        The plugin uses the category to tell which firewall profile carries the Packer session.
 
     .PARAMETER Port
         The listener ports to match against the local port of each connection.
@@ -318,9 +312,7 @@ function Get-SWFirewallState {
         Reads the active firewall profiles and the connected network categories.
 
     .DESCRIPTION
-        Returns whether each profile in the active policy store is enabled, its default
-        inbound action and whether local rules apply, plus the category of every connected
-        network.
+        Returns whether each profile in the active policy store is enabled, its default inbound action and whether local rules apply, plus the category of every connected network.
 
     .EXAMPLE
         (Get-SWFirewallState).profiles
@@ -355,11 +347,11 @@ function Get-SWSystemFacts {
         Collects all guest facts for the Detect action.
 
     .DESCRIPTION
-        Gathers operating system, domain, roles, session, WinRM, WinRM connections and
-        firewall state. Optional collection failures are added to the errors list so the
-        plugin can treat them as unknown and fail closed. Object sections become null;
-        connection and role lists become empty arrays. Operating system and session failures
-        stop the action. Connections and roles remain arrays when only one item is collected.
+        Gathers operating system, domain, roles, session, WinRM, WinRM connections and firewall state.
+        Optional collection failures are added to the errors list so the plugin can treat them as unknown and fail closed.
+        Object sections become null; connection and role lists become empty arrays.
+        Operating system and session failures stop the action.
+        Connections and roles remain arrays when only one item is collected.
 
     .EXAMPLE
         Write-SWResult -Result (Get-SWSystemFacts)

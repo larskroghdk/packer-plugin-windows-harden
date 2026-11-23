@@ -5,8 +5,8 @@
     Pester tests for SecureWindows.SecurityPolicy.ps1.
 
 .DESCRIPTION
-    Covers security template parsing, SID normalization and the user right and account
-    policy lookups. secedit.exe itself is not called.
+    Covers security template parsing, SID normalization and the user right and account policy lookups.
+    secedit.exe itself is not called.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\SecurityPolicy.Tests.ps1

@@ -5,9 +5,8 @@
     Reads, writes, removes and restores values in the 64-bit HKLM registry view.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1. All registry access goes through an
-    explicit RegistryKey root, so a 32-bit process or WOW64 redirection can never change
-    which view is touched.
+    Dot-sourced by Invoke-SecureWindows.ps1.
+    All registry access goes through an explicit RegistryKey root, so a 32-bit process or WOW64 redirection can never change which view is touched.
 
 .EXAMPLE
     . .\SecureWindows.Registry.ps1
@@ -24,8 +23,8 @@ function Get-SWRegistryRoot {
         Opens the 64-bit view of HKEY_LOCAL_MACHINE.
 
     .DESCRIPTION
-        Returns HKLM opened with RegistryView.Registry64, so reads and writes never land in
-        the WOW6432Node redirected view. The caller must dispose the key.
+        Returns HKLM opened with RegistryView.Registry64, so reads and writes never land in the WOW6432Node redirected view.
+        The caller must dispose the key.
 
     .EXAMPLE
         $root = Get-SWRegistryRoot
@@ -81,8 +80,8 @@ function ConvertTo-SWInt32 {
         Reinterprets an unsigned DWORD as the signed value .NET writes to the registry.
 
     .DESCRIPTION
-        The reverse of ConvertTo-SWUInt32. RegistryKey.SetValue takes DWORD data as Int32,
-        so baseline values above 2147483647 have to be passed as their signed equivalent.
+        The reverse of ConvertTo-SWUInt32.
+        RegistryKey.SetValue takes DWORD data as Int32, so baseline values above 2147483647 have to be passed as their signed equivalent.
 
     .PARAMETER Value
         The unsigned DWORD value from the baseline.
@@ -112,9 +111,9 @@ function Get-SWRegistryValue {
         Reads one registry value below a root key.
 
     .DESCRIPTION
-        Returns present = $false when the key or the value does not exist. Otherwise returns
-        the registry type name (REG_DWORD, REG_SZ, ...) and the data as a string. DWORDs are
-        returned as unsigned decimal, and environment variables are not expanded.
+        Returns present = $false when the key or the value does not exist.
+        Otherwise returns the registry type name (REG_DWORD, REG_SZ, ...) and the data as a string.
+        DWORDs are returned as unsigned decimal, and environment variables are not expanded.
 
     .PARAMETER Root
         The open root key, normally from Get-SWRegistryRoot.
@@ -188,8 +187,8 @@ function Set-SWRegistryValue {
         Writes a REG_DWORD or REG_SZ value, creating the key if needed.
 
     .DESCRIPTION
-        REG_DWORD data must be an unsigned decimal string. Anything else, including a negative
-        number, throws before the registry is touched.
+        REG_DWORD data must be an unsigned decimal string.
+        Anything else, including a negative number, throws before the registry is touched.
 
     .PARAMETER Root
         The open root key, normally from Get-SWRegistryRoot.
@@ -254,8 +253,8 @@ function Remove-SWRegistryValue {
         Deletes a registry value if it exists.
 
     .DESCRIPTION
-        Does nothing when the key or the value is already absent. The key itself is left in
-        place.
+        Does nothing when the key or the value is already absent.
+        The key itself is left in place.
 
     .PARAMETER Root
         The open root key, normally from Get-SWRegistryRoot.
@@ -302,9 +301,9 @@ function Restore-SWRegistryValue {
         Puts a registry value back to a previously recorded state.
 
     .DESCRIPTION
-        Deletes the value when the recorded state is absent. Otherwise writes the recorded
-        type and data. Throws for any type other than REG_DWORD or REG_SZ, because those are
-        the only types the plugin writes.
+        Deletes the value when the recorded state is absent.
+        Otherwise writes the recorded type and data.
+        Throws for any type other than REG_DWORD or REG_SZ, because those are the only types the plugin writes.
 
     .PARAMETER Root
         The open root key, normally from Get-SWRegistryRoot.
@@ -332,7 +331,6 @@ function Restore-SWRegistryValue {
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$Path,
-
         [Parameter(Mandatory)]
         [AllowEmptyString()]
         [string]$Name,

@@ -5,8 +5,8 @@
     Tests the collection shapes used in the guest Detect JSON response.
 
 .DESCRIPTION
-    Mocks read-only collectors and checks empty, singleton and multiple role and connection
-    results under Windows PowerShell 5.1. No machine configuration is changed.
+    Mocks read-only collectors and checks empty, singleton and multiple role and connection results under Windows PowerShell 5.1.
+    No machine configuration is changed.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\Facts.Tests.ps1

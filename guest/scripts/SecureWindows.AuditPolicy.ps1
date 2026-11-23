@@ -23,9 +23,8 @@ function Get-SWAuditPolicy {
         Exports the advanced audit policy subcategory settings.
 
     .DESCRIPTION
-        Runs auditpol /backup and returns a hashtable that maps each lower-case subcategory
-        GUID (without braces) to its setting: 0 none, 1 success, 2 failure, 3 both. The CSV
-        file is deleted afterwards.
+        Runs auditpol /backup and returns a hashtable that maps each lower-case subcategory GUID (without braces) to its setting: 0 none, 1 success, 2 failure, 3 both.
+        The CSV file is deleted afterwards.
 
     .PARAMETER WorkPath
         A writable directory for the temporary CSV file.
@@ -76,8 +75,8 @@ function Get-SWAuditSubcategory {
         Reads one audit subcategory setting from an exported audit policy.
 
     .DESCRIPTION
-        Matches the GUID regardless of braces or case. A subcategory missing from the export
-        is reported as absent.
+        Matches the GUID regardless of braces or case.
+        A subcategory missing from the export is reported as absent.
 
     .PARAMETER Policy
         The policy returned by Get-SWAuditPolicy.
@@ -115,8 +114,9 @@ function Set-SWAuditSubcategory {
         Sets success and failure auditing for one subcategory.
 
     .DESCRIPTION
-        Runs auditpol /set. Bit 1 of the setting enables success auditing and bit 2 enables
-        failure auditing. Throws with auditpol's output if it fails.
+        Runs auditpol /set.
+        Bit 1 of the setting enables success auditing and bit 2 enables failure auditing.
+        Throws with auditpol's output if it fails.
 
     .PARAMETER Guid
         The subcategory GUID.

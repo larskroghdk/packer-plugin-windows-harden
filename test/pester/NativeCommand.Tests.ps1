@@ -5,8 +5,8 @@
     Pester tests for SecureWindows.NativeCommand.ps1.
 
 .DESCRIPTION
-    Checks that stderr output and non-zero exit codes are captured, not thrown, when the
-    caller uses ErrorActionPreference Stop. Windows only.
+    Checks that stderr output and non-zero exit codes are captured, not thrown, when the caller uses ErrorActionPreference Stop.
+    Windows only.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\NativeCommand.Tests.ps1

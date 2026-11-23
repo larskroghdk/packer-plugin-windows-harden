@@ -5,9 +5,8 @@
     Pester tests for SecureWindows.Registry.ps1.
 
 .DESCRIPTION
-    Covers DWORD sign conversion and the read, write, remove and restore round trips
-    against a temporary key under HKCU, which is deleted afterwards. The registry tests
-    run on Windows only.
+    Covers DWORD sign conversion and the read, write, remove and restore round trips against a temporary key under HKCU, which is deleted afterwards.
+    The registry tests run on Windows only.
 
 .EXAMPLE
     Invoke-Pester -Path .\test\pester\Registry.Tests.ps1

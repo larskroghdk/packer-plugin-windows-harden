@@ -5,8 +5,8 @@
     Reads and sets service start types.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1. Reads the start type from the registry so
-    a missing service is reported as absent, and changes it with Set-Service.
+    Dot-sourced by Invoke-SecureWindows.ps1.
+    Reads the start type from the registry so a missing service is reported as absent, and changes it with Set-Service.
 
 .EXAMPLE
     . .\SecureWindows.Services.ps1
@@ -23,8 +23,8 @@ function Get-SWServiceStartType {
         Reads a service's start type from the registry.
 
     .DESCRIPTION
-        Reads the Start value under SYSTEM\CurrentControlSet\Services. A service that is not
-        installed is reported as absent, which the plugin treats as not applicable.
+        Reads the Start value under SYSTEM\CurrentControlSet\Services.
+        A service that is not installed is reported as absent, which the plugin treats as not applicable.
 
     .PARAMETER Root
         The open root key, normally from Get-SWRegistryRoot.
@@ -59,8 +59,8 @@ function Set-SWServiceStartType {
         Changes a service's start type.
 
     .DESCRIPTION
-        Maps the baseline start type to Set-Service: 2 Automatic, 3 Manual, 4 Disabled. The
-        service is not started or stopped.
+        Maps the baseline start type to Set-Service: 2 Automatic, 3 Manual, 4 Disabled.
+        The service is not started or stopped.
 
     .PARAMETER Name
         The service name (not the display name).

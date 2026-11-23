@@ -5,10 +5,10 @@
     Runs one windows-harden guest action and writes its result as JSON.
 
 .DESCRIPTION
-    Entry point that the Packer plugin starts over WinRM, once per action. It loads the
-    SecureWindows.*.ps1 parts from its own directory, reads the JSON request from
-    -InputPath when the action takes one, and writes the JSON result to -OutputPath.
-    The script only detects, reads and writes state. Every decision is made by the plugin.
+    Entry point that the Packer plugin starts over WinRM, once per action.
+    It loads the SecureWindows.*.ps1 parts from its own directory, reads the JSON request from -InputPath when the action takes one, and writes the JSON result to -OutputPath.
+    The script only detects, reads and writes state.
+    Every decision is made by the plugin.
     Detect      collects operating system, session, WinRM and firewall facts.
     Probe       re-reads WinRM, the session and the boot time to check connectivity.
     Inspect     reads the current state of the requested settings.
@@ -23,10 +23,12 @@
     The action to run.
 
 .PARAMETER InputPath
-    JSON request file. Required by every action except Detect and Probe.
+    JSON request file.
+    Required by every action except Detect and Probe.
 
 .PARAMETER OutputPath
-    Where the JSON result is written. Its directory is also used for temporary files.
+    Where the JSON result is written.
+    Its directory is also used for temporary files.
 
 .EXAMPLE
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Invoke-SecureWindows.ps1 -Action Detect -OutputPath C:\Windows\Temp\sw\01-detect-output.json
@@ -35,7 +37,8 @@
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Invoke-SecureWindows.ps1 -Action Inspect -InputPath C:\Windows\Temp\sw\04-inspect-input.json -OutputPath C:\Windows\Temp\sw\04-inspect-output.json
 
 .OUTPUTS
-    None. The result is written to -OutputPath. Progress lines go to stdout.
+    None. The result is written to -OutputPath.
+    Progress lines go to stdout.
 
 .NOTES
     Author  : Lars Krogh
@@ -62,6 +65,7 @@ param (
 )
 
 Set-StrictMode -Version Latest
+
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
@@ -75,7 +79,6 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 foreach ($part in 'NativeCommand', 'Registry', 'SecurityPolicy', 'AuditPolicy', 'Services', 'Facts', 'Guard') {
     . (Join-Path -Path $scriptRoot -ChildPath "SecureWindows.$part.ps1")
 }
-
 $workPath = Split-Path -Parent $OutputPath
 
 function Write-SWLog {
@@ -84,9 +87,8 @@ function Write-SWLog {
         Writes a progress line to standard output.
 
     .DESCRIPTION
-        Writes the message straight to the console output stream so that Packer shows it in
-        the build log. It bypasses the PowerShell pipeline, so the line never ends up in a
-        function's return value.
+        Writes the message straight to the console output stream so that Packer shows it in the build log.
+        It bypasses the PowerShell pipeline, so the line never ends up in a function's return value.
 
     .PARAMETER Message
         The line to write. Must not contain secrets, because Packer logs it.
@@ -112,9 +114,8 @@ function Read-SWInput {
         Reads the JSON request that the plugin uploaded for the current action.
 
     .DESCRIPTION
-        Parses the file named by the script's -InputPath parameter as UTF-8 JSON. A JSON
-        array is written to the pipeline one element at a time, so wrapping the call in @()
-        gives the same result in Windows PowerShell 5.1 and PowerShell 7.
+        Parses the file named by the script's -InputPath parameter as UTF-8 JSON.
+        A JSON array is written to the pipeline one element at a time, so wrapping the call in @() gives the same result in Windows PowerShell 5.1 and PowerShell 7.
 
     .EXAMPLE
         $settings = @(Read-SWInput)
@@ -141,11 +142,12 @@ function Write-SWResult {
         Writes the action result to the output file as JSON.
 
     .DESCRIPTION
-        Serializes the result to compact JSON and writes it to the script's -OutputPath as
-        UTF-8 without a byte order mark. The plugin downloads and decodes this file.
+        Serializes the result to compact JSON and writes it to the script's -OutputPath as UTF-8 without a byte order mark.
+        The plugin downloads and decodes this file.
 
     .PARAMETER Result
-        The object to serialize. Property names are the JSON field names the Go side decodes.
+        The object to serialize.
+        Property names are the JSON field names the Go side decodes.
 
     .EXAMPLE
         Write-SWResult -Result ([PSCustomObject]@{ armed = $true })
@@ -169,14 +171,13 @@ function Invoke-SWInspect {
         Reads the current state of each baseline setting.
 
     .DESCRIPTION
-        Returns one state object per setting, in input order. Security policy and audit policy
-        are exported once and shared by every setting of those kinds. When an export fails,
-        each affected setting reports that failure in its error field. A failure on one
-        setting never stops the others.
+        Returns one state object per setting, in input order.
+        Security policy and audit policy are exported once and shared by every setting of those kinds.
+        When an export fails, each affected setting reports that failure in its error field.
+        A failure on one setting never stops the others.
 
     .PARAMETER Settings
-        Baseline settings as sent by the plugin, each with an id, a kind and the payload for
-        that kind.
+        Baseline settings as sent by the plugin, each with an id, a kind and the payload for that kind.
 
     .EXAMPLE
         Invoke-SWInspect -Settings @(Read-SWInput)
@@ -268,9 +269,8 @@ function Invoke-SWApply {
 
     .DESCRIPTION
         Writes registry values, audit subcategories and service start types one at a time.
-        User rights and account policies are collected and applied in a single secedit.exe
-        run, so they all share that run's result. Each setting gets one result object, and a
-        failure on one setting does not stop the rest.
+        User rights and account policies are collected and applied in a single secedit.exe run, so they all share that run's result.
+        Each setting gets one result object, and a failure on one setting does not stop the rest.
 
     .PARAMETER Settings
         The settings to apply, already cleared by the plugin's WinRM protection rules.
@@ -372,9 +372,8 @@ function Invoke-SWRollback {
         Restores registry values from a guard snapshot.
 
     .DESCRIPTION
-        Puts each snapshotted registry value back to its recorded state, deleting values that
-        were absent before. Only registry settings can be rolled back; any other kind is
-        reported as failed.
+        Puts each snapshotted registry value back to its recorded state, deleting values that were absent before.
+        Only registry settings can be rolled back; any other kind is reported as failed.
 
     .PARAMETER Items
         Snapshot entries, each holding the setting and its state before the guarded change.

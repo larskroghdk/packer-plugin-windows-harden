@@ -5,8 +5,8 @@
     Runs external programs without Windows PowerShell 5.1 stderr pitfalls.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1 before the other parts. Used by the security
-    policy and audit policy parts to call secedit.exe and auditpol.exe.
+    Dot-sourced by Invoke-SecureWindows.ps1 before the other parts.
+    Used by the security policy and audit policy parts to call secedit.exe and auditpol.exe.
 
 .EXAMPLE
     . .\SecureWindows.NativeCommand.ps1
@@ -23,10 +23,10 @@ function Invoke-SWNativeCommand {
         Runs an external program and captures its exit code and combined output.
 
     .DESCRIPTION
-        Sets ErrorActionPreference to Continue for the call. Without this, Windows
-        PowerShell 5.1 turns the first line the program writes to stderr into a terminating
-        error, and the exit code is lost. stdout and stderr are merged into one string with
-        blank lines removed. The caller decides which exit codes count as failures.
+        Sets ErrorActionPreference to Continue for the call.
+        Without this, Windows PowerShell 5.1 turns the first line the program writes to stderr into a terminating error, and the exit code is lost.
+        stdout and stderr are merged into one string with blank lines removed.
+        The caller decides which exit codes count as failures.
 
     .PARAMETER FilePath
         Full path of the program.

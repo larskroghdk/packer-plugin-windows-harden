@@ -5,9 +5,9 @@
     Reads and writes user rights and account policies through secedit.exe.
 
 .DESCRIPTION
-    Dot-sourced by Invoke-SecureWindows.ps1. Exports and parses security templates and
-    applies changes from a generated template. Requires Invoke-SWNativeCommand from
-    SecureWindows.NativeCommand.ps1.
+    Dot-sourced by Invoke-SecureWindows.ps1.
+    Exports and parses security templates and applies changes from a generated template.
+    Requires Invoke-SWNativeCommand from SecureWindows.NativeCommand.ps1.
 
 .EXAMPLE
     . .\SecureWindows.SecurityPolicy.ps1
@@ -24,9 +24,8 @@ function ConvertFrom-SWSecurityTemplate {
         Parses a secedit security template into sections of key/value pairs.
 
     .DESCRIPTION
-        Returns a hashtable keyed by section name. Each section is a case-insensitive
-        hashtable of its entries. Blank lines, ';' comments, entries before the first section
-        and lines without a key are ignored.
+        Returns a hashtable keyed by section name.
+        Each section is a case-insensitive hashtable of its entries. Blank lines, ';' comments, entries before the first section and lines without a key are ignored.
 
     .PARAMETER Text
         The template text, already decoded from UTF-16.
@@ -78,10 +77,10 @@ function ConvertTo-SWSidList {
         Normalizes a user-right assignment to a sorted list of SIDs.
 
     .DESCRIPTION
-        Accepts the comma-separated principals from a security template. Entries prefixed
-        with '*' are SIDs. Other entries are account names, which are translated to SIDs and
-        kept as-is if they cannot be resolved. Returns upper-case SIDs, sorted and
-        de-duplicated, joined with commas.
+        Accepts the comma-separated principals from a security template.
+        Entries prefixed with '*' are SIDs.
+        Other entries are account names, which are translated to SIDs and kept as-is if they cannot be resolved.
+        Returns upper-case SIDs, sorted and de-duplicated, joined with commas.
 
     .PARAMETER Value
         The assignment string, for example '*S-1-5-32-544,*S-1-5-11'.
@@ -129,9 +128,9 @@ function Invoke-SWSecedit {
         Runs secedit.exe quietly and checks its exit code.
 
     .DESCRIPTION
-        Adds /log and /quiet to the arguments. Exit code 3 means secedit finished with
-        warnings and is returned to the caller. Any other non-zero code throws, with
-        secedit's output and the last lines of its log.
+        Adds /log and /quiet to the arguments.
+        Exit code 3 means secedit finished with warnings and is returned to the caller.
+        Any other non-zero code throws, with secedit's output and the last lines of its log.
 
     .PARAMETER ArgumentList
         The secedit arguments, starting with the operation (/export or /configure).
@@ -175,8 +174,7 @@ function Export-SWSecurityPolicy {
         Exports the local security policy and user rights.
 
     .DESCRIPTION
-        Runs secedit /export for the SECURITYPOLICY and USER_RIGHTS areas, parses the
-        template and deletes the exported file.
+        Runs secedit /export for the SECURITYPOLICY and USER_RIGHTS areas, parses the template and deletes the exported file.
 
     .PARAMETER WorkPath
         A writable directory for the exported template and the secedit log.
@@ -214,8 +212,8 @@ function Get-SWUserRight {
         Reads who holds a user right in an exported security policy.
 
     .DESCRIPTION
-        A right that does not appear in the export is assigned to no one. It is reported as
-        present with an empty value, not as absent.
+        A right that does not appear in the export is assigned to no one.
+        It is reported as present with an empty value, not as absent.
 
     .PARAMETER Policy
         The policy returned by Export-SWSecurityPolicy.
@@ -253,8 +251,8 @@ function Get-SWAccountPolicy {
         Reads an account policy value from an exported security policy.
 
     .DESCRIPTION
-        Looks the name up in the [System Access] section. A name that is not exported is
-        reported as absent.
+        Looks the name up in the [System Access] section.
+        A name that is not exported is reported as absent.
 
     .PARAMETER Policy
         The policy returned by Export-SWSecurityPolicy.
@@ -291,17 +289,15 @@ function Set-SWSecurityPolicy {
         Applies user rights and account policies in one secedit run.
 
     .DESCRIPTION
-        Writes a UTF-16 security template with only the given entries and configures it into
-        a throw-away database, limited to the areas that have entries. The template, the
-        database and its journal are deleted afterwards. Returns 0 without running secedit
-        when there is nothing to apply.
+        Writes a UTF-16 security template with only the given entries and configures it into a throw-away database, limited to the areas that have entries.
+        The template, the database and its journal are deleted afterwards.
+        Returns 0 without running secedit when there is nothing to apply.
 
     .PARAMETER WorkPath
         A writable directory for the template, the database and the log.
 
     .PARAMETER UserRights
-        Right names mapped to the SIDs that should hold them. An empty list assigns the right
-        to no one.
+        Right names mapped to the SIDs that should hold them. An empty list assigns the right to no one.
 
     .PARAMETER AccountPolicies
         [System Access] keys mapped to their values.
