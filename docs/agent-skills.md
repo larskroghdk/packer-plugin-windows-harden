@@ -39,19 +39,20 @@ Paths below are relative to the pinned upstream `skills/` tree. Adapt means reta
 
 ## Discovery and ownership
 
-- **Codex:** the canonical `.agents/skills/<name>/SKILL.md` files use repository skill discovery. Invoke with `$go-development`, for example, or let the host match the description. See [OpenAI's skill guide](https://learn.chatgpt.com/docs/build-skills).
-- **Claude Code:** `.claude/skills/<name>/SKILL.md` files contain matching discovery metadata and explicitly instruct Claude to read the shared file. Invoke `/go-development`, for example. This follows [Claude's project skill location](https://code.claude.com/docs/en/skills#choose-where-skills-load) without requiring Windows symlinks or duplicated workflow bodies. `CLAUDE.md` continues importing the root guidance.
-- **Other agents:** follow the catalog in AGENTS.md or the explicit links in `.github/copilot-instructions.md` and read the selected skill. An agent understanding Markdown is not proof that it implements Codex or Claude discovery.
+- **Codex:** `AGENTS.md` is the native project instruction entrypoint. Canonical `.agents/skills/<name>/SKILL.md` files use repository skill discovery; `.agents` is not a general Codex configuration directory.
+- **Claude Code:** `CLAUDE.md` imports shared standards and architecture. It explicitly routes to `.agents/skills` for task procedures. Native project skills are documented under `.claude/skills`; this repository deliberately omits that directory, so shared workflows are read as files rather than promised as `/skill-name` commands. See [Claude skill discovery](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+- **Claude reviewers:** `.claude/agents` contains three read-only reviewer definitions for Go, PowerShell and requested security audits. They reference shared guidance and use Claude's native [subagent format](https://code.claude.com/docs/en/sub-agents). They are not shared skill copies.
+- **Other agents:** read the shared files through the root catalog or Copilot instructions. Markdown compatibility does not imply native skill discovery.
 
-Only standard `name` and `description` frontmatter is needed. There are no tool grants, hooks, models, MCP dependencies, global installations or agent-specific execution commands. The [Agent Skills specification](https://agentskills.io/specification) defines the common file format; the host defines invocation and discovery.
+Shared standards live in `.agents/standards`, and the module map and run flow live in `.agents/architecture/overview.md`. `INVARIANTS.md` remains authoritative for hard constraints; Makefile owns executable checks. Both root instruction files reference the same knowledge. Tool-specific configuration belongs to its own host directory; no empty settings file, hooks or permission grants are added.
 
-Edit workflow bodies only in `.agents/skills`. When changing a description or adding/removing a skill, update its thin Claude adapter and the root catalog. Keep relative links relative to the file containing them; run project commands from the repository root. If a host does not refresh the skill list, restart its session. A configured permission policy still applies, and skill activation grants no additional authority.
+Edit reusable procedures only in `.agents/skills`. Maintain standard `name` and `description` frontmatter and update the root catalog when skills change. No `.claude/skills` adapters or duplicate bodies are maintained. Read selected workflow bodies explicitly when native discovery is unavailable; do not load the entire collection into every task. Skill activation grants no additional authority.
 
 ## Guidance and validation
 
 Go guidance was checked against [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments), [context ownership](https://pkg.go.dev/context) and the [race detector's platform/toolchain requirements](https://go.dev/doc/articles/race_detector). PowerShell guidance follows Microsoft's [approved verbs](https://learn.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands) and [Windows PowerShell 5.1 help conventions](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_comment_based_help?view=powershell-5.1). This project's I19 documentation rules and 5.1 guest compatibility remain authoritative.
 
-For skill changes, validate required frontmatter and matching folder names, resolve local Markdown links, compare canonical and adapter metadata, and inspect activation overlap. An available skill-creator validator can check the standard frontmatter; its success does not prove semantic quality. Do not use upstream's fixed-format checker against this differently structured collection.
+For skill changes, validate required frontmatter and matching folder names, resolve local Markdown links, check reviewer metadata and shared references, and inspect activation overlap. An available skill-creator validator can check the standard frontmatter; its success does not prove semantic quality. Do not use upstream's fixed-format checker against this differently structured collection.
 
 Use concrete routing cases when reviewing the collection:
 
@@ -69,7 +70,7 @@ Repository validation commands remain in Makefile. In particular, `make check` i
 
 Structural validation and these routing reviews do not prove a model will select or obey a skill in every host. Report native discovery, model execution and live guest verification separately; none should be inferred from passing Go/Pester tests.
 
-Validation performed for this collection:
+Historical validation of the original skill adoption (before the directory reorganization):
 
 - The bundled skill-creator validator accepted all six canonical files and six Claude adapters. All 67 local Markdown links and both `CLAUDE.md` imports resolved; adapter metadata matched its canonical file.
 - The adoption table accounts for all 20 upstream entrypoints at the pinned commit.
@@ -77,3 +78,9 @@ Validation performed for this collection:
 - Claude Code 2.1.326 was present. Its documented project paths and adapter links were checked; slash-command execution and model-following behavior were not exercised.
 - The `make check` recipe commands passed when run directly because make was unavailable: formatting, documentation checks, Go build/vet/staticcheck/tests, govulncheck, PowerShell analysis, example formatting and all 41 Windows PowerShell 5.1 Pester tests.
 - Runtime code and build configuration were not changed by the skill adaptation. Live guest hardening, signed release publication and race testing are outside this documentation change.
+
+## Directory reorganization
+
+Shared standards and architecture are now extracted from the root instructions. The six canonical skills remain unchanged. The six former Claude discovery adapters were removed and replaced with three read-only Claude-specific reviewer definitions; these do not provide slash-command aliases. Historical adapter checks above do not describe the current layout. Validate current local links, Claude imports, reviewer frontmatter and canonical skill metadata when changing this structure. Native reviewer invocation and model-following behavior require separate host testing.
+
+Current reorganization validation: 74 local Markdown links and seven Claude imports resolve; all six canonical skills and three read-only reviewers have valid matching metadata. The Makefile check recipes passed, including all 41 Windows PowerShell 5.1 Pester tests. Reviewer invocation and model behavior were not exercised.
