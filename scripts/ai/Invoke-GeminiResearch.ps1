@@ -74,7 +74,7 @@ try {
     $cachePath = Join-Path (Get-AIStateDirectory -RepositoryRoot $root -Name 'research') "$key.json"
     if (-not $Refresh -and (Test-Path -LiteralPath $cachePath) -and (Get-Item -LiteralPath $cachePath).LastWriteTimeUtc -gt [DateTime]::UtcNow.AddDays(-$settings.Gemini.CacheDays)) {
         $cached = Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json
-        Write-Host "Cached Gemini answer from $($cached.answered_at) (use -Refresh to ask again)."
+        Write-AIMessage "Cached Gemini answer from $($cached.answered_at) (use -Refresh to ask again)."
         Add-AIUsage -RepositoryRoot $root -Agent 'gemini' -Operation 'research-cached' -Usage @{ cache_key = $key }
         $cached.response
         exit 0
@@ -98,7 +98,7 @@ $Question
     $result = $null
     $failure = $null
     for ($attempt = 1; $attempt -le $settings.Gemini.MaxAttempts -and -not $result; $attempt++) {
-        Write-Host "Asking Gemini (attempt $attempt of $($settings.Gemini.MaxAttempts))"
+        Write-AIMessage "Asking Gemini (attempt $attempt of $($settings.Gemini.MaxAttempts))"
         $started = [DateTime]::UtcNow
         $run = Invoke-AIProcess -FilePath $gemini -ArgumentList $arguments -InputText $prompt -WorkingDirectory $root -TimeoutSeconds $settings.Gemini.TimeoutSeconds -Agent
         $after = Get-AIWorkingTreeId -RepositoryRoot $root
@@ -142,7 +142,7 @@ $Question
         $usage += @{ input_tokens = $inputTokens; output_tokens = $outputTokens; cached_tokens = $cachedTokens; estimated_usd = [Math]::Round($cost, 4); models = $models }
         Add-AIUsage -RepositoryRoot $root -Agent 'gemini' -Operation 'research' -Usage $usage
         $costText = if ($cost -gt 0) { ", estimated USD $([Math]::Round($cost, 4))" } else { '' }
-        Write-Host "Gemini used $inputTokens input and $outputTokens output tokens ($cachedTokens cached)$costText."
+        Write-AIMessage "Gemini used $inputTokens input and $outputTokens output tokens ($cachedTokens cached)$costText."
         $result = $parsed.response
     }
     if (-not $result) {
@@ -154,6 +154,6 @@ $Question
     exit 0
 }
 catch {
-    Write-Host "Research failed: $($_.Exception.Message)"
+    Write-AIMessage "Research failed: $($_.Exception.Message)"
     exit 1
 }

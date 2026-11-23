@@ -101,7 +101,7 @@ try {
     switch ($Stage) {
         'InstallHooks' {
             $null = Invoke-AIGit -ArgumentList 'config', 'core.hooksPath', '.githooks' -WorkingDirectory $root
-            Write-Host 'Git hooks installed: core.hooksPath = .githooks'
+            Write-AIMessage 'Git hooks installed: core.hooksPath = .githooks'
             exit 0
         }
         'Status' {
@@ -109,16 +109,16 @@ try {
             $changeset = Get-AIChangeset -RepositoryRoot $root
             $record = Get-AIReviewRecord -RepositoryRoot $root -Changeset $changeset
             if ($changeset.BaseTree -eq $changeset.Tree) {
-                Write-Host 'Nothing is staged.'
+                Write-AIMessage 'Nothing is staged.'
             }
             elseif (Test-AIApproval -Record $record -Changeset $changeset -BlockingSeverities $settings.Codex.BlockingSeverities) {
-                Write-Host "Staged changeset $($changeset.Id) is approved."
+                Write-AIMessage "Staged changeset $($changeset.Id) is approved."
             }
             elseif ($record) {
                 Write-AIReview -Record $record
             }
             else {
-                Write-Host "Staged changeset $($changeset.Id) has not been reviewed."
+                Write-AIMessage "Staged changeset $($changeset.Id) has not been reviewed."
             }
             exit 0
         }
@@ -140,7 +140,7 @@ try {
             if (-not $record.approved) {
                 throw 'Codex rejected the staged changes. Fix the findings, stage the fixes and commit again.'
             }
-            Write-Host "Commit allowed: changeset $($changeset.Id) is approved."
+            Write-AIMessage "Commit allowed: changeset $($changeset.Id) is approved."
             exit 0
         }
         'PrePush' {
@@ -158,16 +158,16 @@ try {
             }
             if (@($missing).Count -gt 0) {
                 foreach ($commit in $missing) {
-                    Write-Host "  not approved: $commit"
+                    Write-AIMessage "  not approved: $commit"
                 }
                 throw 'These commits have no approving Codex review. Review each with: pwsh -NoProfile -File scripts/ai/Invoke-CodexReview.ps1 -Commit <sha>'
             }
-            Write-Host 'Push allowed: every outgoing commit is approved.'
+            Write-AIMessage 'Push allowed: every outgoing commit is approved.'
             exit 0
         }
     }
 }
 catch {
-    Write-Host "$Stage blocked: $($_.Exception.Message)"
+    Write-AIMessage "$Stage blocked: $($_.Exception.Message)"
     exit 1
 }

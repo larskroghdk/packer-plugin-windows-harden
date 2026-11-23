@@ -65,7 +65,7 @@ Four agents work on this repository with fixed roles. [docs/ai-development.md](d
 - Run the deterministic checks before asking for a review. The pre-commit hook runs the matching checks from `scripts/ai/settings.psd1` and then Codex on the exact staged snapshot. A commit is allowed only when Codex approves that changeset and reports no critical or high finding.
 - An approval belongs to one changeset (base tree and result tree). Any change to the staged content needs a new review. The pre-push hook blocks commits without an approval; review them with `Invoke-CodexReview.ps1 -Commit <sha>`.
 - Never bypass the hooks (`--no-verify`, `core.hooksPath` overrides) and never write to `.git/ai`. A failed or unavailable review blocks the commit. Fix the findings and commit again.
-- Agents never start other agents and never commit or push. The scripts refuse to run under another agent (`AI_AGENT_ACTIVE`).
+- Only Claude starts the other agents, and only through the scripts in `scripts/ai`. The agents those scripts start never start further agents and never commit or push; the scripts and hooks refuse to run under them (`AI_AGENT_ACTIVE`).
 - When reviewing as Codex, report findings only. Don't edit files.
 
 ## Skills

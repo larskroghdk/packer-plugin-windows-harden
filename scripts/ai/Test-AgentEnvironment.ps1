@@ -34,7 +34,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'AgentTools.ps1')
 
-function New-EnvironmentResult {
+function ConvertTo-EnvironmentResult {
     <#
     .SYNOPSIS
         Creates one row of the environment report.
@@ -58,7 +58,7 @@ function New-EnvironmentResult {
         Version, authentication state or the fix.
 
     .EXAMPLE
-        New-EnvironmentResult -Component 'git' -Role 'version control' -Ready $true -Required $true -Detail '2.43'
+        ConvertTo-EnvironmentResult -Component 'git' -Role 'version control' -Ready $true -Required $true -Detail '2.43'
 
     .OUTPUTS
         System.Management.Automation.PSCustomObject
@@ -116,18 +116,18 @@ function Get-FirstLine {
 $root = Get-AIRepositoryRoot
 $settings = Get-AIConfiguration -RepositoryRoot $root
 $results = [Collections.Generic.List[object]]::new()
-$results.Add((New-EnvironmentResult -Component 'pwsh' -Role 'runs the workflow scripts' -Ready ($PSVersionTable.PSVersion -ge [version]'7.2') -Required $true -Detail $PSVersionTable.PSVersion.ToString()))
+$results.Add((ConvertTo-EnvironmentResult -Component 'pwsh' -Role 'runs the workflow scripts' -Ready ($PSVersionTable.PSVersion -ge [version]'7.2') -Required $true -Detail $PSVersionTable.PSVersion.ToString()))
 try {
     $git = Resolve-AICommand -Name 'git'
-    $results.Add((New-EnvironmentResult -Component 'git' -Role 'version control' -Ready $true -Required $true -Detail (Get-FirstLine (Invoke-AIProcess -FilePath $git -ArgumentList '--version' -TimeoutSeconds 30))))
+    $results.Add((ConvertTo-EnvironmentResult -Component 'git' -Role 'version control' -Ready $true -Required $true -Detail (Get-FirstLine (Invoke-AIProcess -FilePath $git -ArgumentList '--version' -TimeoutSeconds 30))))
 }
 catch {
-    $results.Add((New-EnvironmentResult -Component 'git' -Role 'version control' -Ready $false -Required $true -Detail $_.Exception.Message))
+    $results.Add((ConvertTo-EnvironmentResult -Component 'git' -Role 'version control' -Ready $false -Required $true -Detail $_.Exception.Message))
 }
 $hooksPath = Invoke-AIGit -ArgumentList 'config', '--get', 'core.hooksPath' -WorkingDirectory $root -AllowFailure
-$results.Add((New-EnvironmentResult -Component 'git hooks' -Role 'pre-commit review gate, pre-push verification' -Ready ($hooksPath -eq '.githooks') -Required $true -Detail $(if ($hooksPath -eq '.githooks') { 'core.hooksPath = .githooks' } else { 'Run: pwsh -NoProfile -File scripts/ai/Invoke-AgentWorkflow.ps1 -Stage InstallHooks' })))
+$results.Add((ConvertTo-EnvironmentResult -Component 'git hooks' -Role 'pre-commit review gate, pre-push verification' -Ready ($hooksPath -eq '.githooks') -Required $true -Detail $(if ($hooksPath -eq '.githooks') { 'core.hooksPath = .githooks' } else { 'Run: pwsh -NoProfile -File scripts/ai/Invoke-AgentWorkflow.ps1 -Stage InstallHooks' })))
 $pester = Get-Module -ListAvailable -Name Pester | Sort-Object Version -Descending | Select-Object -First 1
-$results.Add((New-EnvironmentResult -Component 'Pester' -Role 'agent workflow tests' -Ready ($null -ne $pester -and $pester.Version -ge [version]'5.6.1') -Required $false -Detail $(if ($pester) { $pester.Version.ToString() } else { 'Install-Module Pester -RequiredVersion 5.6.1 -Scope CurrentUser' })))
+$results.Add((ConvertTo-EnvironmentResult -Component 'Pester' -Role 'agent workflow tests' -Ready ($null -ne $pester -and $pester.Version -ge [version]'5.6.1') -Required $false -Detail $(if ($pester) { $pester.Version.ToString() } else { 'Install-Module Pester -RequiredVersion 5.6.1 -Scope CurrentUser' })))
 $agents = @(
     @{ Name = 'codex'; Role = 'mandatory independent reviewer'; Required = $true; Command = $settings.Codex.Command }
     @{ Name = 'gemini'; Role = 'on-demand read-only research'; Required = $false; Command = $settings.Gemini.Command }
@@ -165,10 +165,10 @@ foreach ($agent in $agents) {
             $ready = -not $probe.TimedOut -and $probe.ExitCode -eq 0
             $detail += "; live call $(if ($ready) { 'succeeded' } else { "failed: $(Get-FirstLine $probe)" })"
         }
-        $results.Add((New-EnvironmentResult -Component $agent.Name -Role $agent.Role -Ready $ready -Required $agent.Required -Detail $detail))
+        $results.Add((ConvertTo-EnvironmentResult -Component $agent.Name -Role $agent.Role -Ready $ready -Required $agent.Required -Detail $detail))
     }
     catch {
-        $results.Add((New-EnvironmentResult -Component $agent.Name -Role $agent.Role -Ready $false -Required $agent.Required -Detail $_.Exception.Message))
+        $results.Add((ConvertTo-EnvironmentResult -Component $agent.Name -Role $agent.Role -Ready $false -Required $agent.Required -Detail $_.Exception.Message))
     }
 }
 $results | Format-Table -Property Component, Ready, Required, Role, Detail -AutoSize -Wrap | Out-Host

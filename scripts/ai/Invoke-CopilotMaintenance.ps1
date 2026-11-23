@@ -84,7 +84,7 @@ $Task
         }
         $headBefore = Invoke-AIGit -ArgumentList 'rev-parse', '--verify', '--quiet', 'HEAD' -WorkingDirectory $root -AllowFailure
         $before = Get-AIWorkingTreeId -RepositoryRoot $root
-        Write-Host 'Running Copilot'
+        Write-AIMessage 'Running Copilot'
         $started = [DateTime]::UtcNow
         $run = Invoke-AIProcess -FilePath $copilot -ArgumentList $arguments -WorkingDirectory $root -TimeoutSeconds $settings.Copilot.TimeoutSeconds -Agent
         $after = Get-AIWorkingTreeId -RepositoryRoot $root
@@ -117,7 +117,7 @@ $Task
         if ($run.ExitCode -ne 0) {
             throw "Copilot exited with code $($run.ExitCode): $((($run.StandardError -split "`n") | Select-Object -Last 5) -join "`n")"
         }
-        Write-Host "Copilot changed: $(if ($changed) { $changed -join ', ' } else { 'nothing' })"
+        Write-AIMessage "Copilot changed: $(if ($changed) { $changed -join ', ' } else { 'nothing' })"
         $run.StandardOutput.Trim()
     }
     finally {
@@ -127,6 +127,6 @@ $Task
     exit 0
 }
 catch {
-    Write-Host "Copilot maintenance failed: $($_.Exception.Message)"
+    Write-AIMessage "Copilot maintenance failed: $($_.Exception.Message)"
     exit 1
 }

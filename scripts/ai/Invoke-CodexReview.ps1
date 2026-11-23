@@ -44,12 +44,12 @@ try {
     $settings = Get-AIConfiguration -RepositoryRoot $root
     $changeset = Get-AIChangeset -RepositoryRoot $root -Commit $Commit
     if ($changeset.BaseTree -eq $changeset.Tree) {
-        Write-Host 'The changeset is empty; there is nothing to review.'
+        Write-AIMessage 'The changeset is empty; there is nothing to review.'
         exit 0
     }
     $record = Get-AIReviewRecord -RepositoryRoot $root -Changeset $changeset
     if (-not $Force -and (Test-AIApproval -Record $record -Changeset $changeset -BlockingSeverities $settings.Codex.BlockingSeverities)) {
-        Write-Host "Changeset $($changeset.Id) was already approved at $($record.reviewed_at)."
+        Write-AIMessage "Changeset $($changeset.Id) was already approved at $($record.reviewed_at)."
         exit 0
     }
     $record = Invoke-AIReviewGate -RepositoryRoot $root -Settings $settings -Changeset $changeset
@@ -57,6 +57,6 @@ try {
     if ($record.approved) { exit 0 } else { exit 1 }
 }
 catch {
-    Write-Host "Review blocked: $($_.Exception.Message)"
+    Write-AIMessage "Review blocked: $($_.Exception.Message)"
     exit 1
 }

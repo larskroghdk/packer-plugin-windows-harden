@@ -22,6 +22,33 @@ Set-StrictMode -Version Latest
 $script:EmptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 $script:Severities = @('critical', 'high', 'medium', 'low')
 
+function Write-AIMessage {
+    <#
+    .SYNOPSIS
+        Shows a status message to the person running the workflow.
+
+    .DESCRIPTION
+        Writes the message to the information stream and displays it, so it reaches the console like Write-AIMessage but never the success pipeline that callers capture.
+
+    .PARAMETER Message
+        The message text.
+
+    .EXAMPLE
+        Write-AIMessage -Message 'Requesting Codex review'
+
+    .NOTES
+        Author  : Lars Krogh
+        Version : 1.0.0
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [AllowEmptyString()]
+        [string]$Message
+    )
+    Write-Information -MessageData $Message -InformationAction Continue
+}
+
 function Invoke-AIProcess {
     <#
     .SYNOPSIS
@@ -674,7 +701,7 @@ function Test-AIApprovedPath {
     .DESCRIPTION
         Loads every stored review that approves its own changeset under Test-AIApproval and searches for a chain of them from the base tree to the result tree.
         A commit whose own changeset was reviewed passes with a chain of one. An amended commit passes when the original commit and the amendment were both approved, because each step was reviewed on the complete resulting tree.
-        Records whose file name, changeset and trees disagree are ignored.
+        Records that cannot be read, are not objects, lack a field, or whose file name, changeset and trees disagree are ignored, so a damaged record never blocks other approvals.
 
     .PARAMETER RepositoryRoot
         The repository root.
@@ -709,20 +736,24 @@ function Test-AIApprovedPath {
     foreach ($file in @(Get-ChildItem -LiteralPath $directory -Filter '*.json' -File)) {
         try {
             $record = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+            if ($record -isnot [PSCustomObject]) {
+                continue
+            }
+            $properties = @($record.PSObject.Properties.Name)
+            $missing = @('base_tree', 'tree', 'changeset', 'verdict', 'findings' | Where-Object { $_ -notin $properties })
+            if ($missing.Count -gt 0 -or $record.base_tree -isnot [string] -or $record.tree -isnot [string]) {
+                continue
+            }
+            $id = "$($record.base_tree)-$($record.tree)"
+            if ($record.changeset -ne $id -or $file.BaseName -ne $id) {
+                continue
+            }
+            if (-not (Test-AIApproval -Record $record -Changeset ([PSCustomObject]@{ Id = $id }) -BlockingSeverities $BlockingSeverities)) {
+                continue
+            }
         }
         catch {
-            Write-Verbose "Ignoring unreadable review record $($file.Name)."
-            continue
-        }
-        $properties = $record.PSObject.Properties.Name
-        if ('base_tree' -notin $properties -or 'tree' -notin $properties -or 'changeset' -notin $properties) {
-            continue
-        }
-        $id = "$($record.base_tree)-$($record.tree)"
-        if ($record.changeset -ne $id -or $file.BaseName -ne $id) {
-            continue
-        }
-        if (-not (Test-AIApproval -Record $record -Changeset ([PSCustomObject]@{ Id = $id }) -BlockingSeverities $BlockingSeverities)) {
+            Write-Verbose "Ignoring malformed review record $($file.Name): $($_.Exception.Message)"
             continue
         }
         if (-not $edges.ContainsKey($record.base_tree)) {
@@ -915,7 +946,7 @@ function Invoke-AICheck {
         if ($matching.Count -eq 0) {
             continue
         }
-        Write-Host "  check: $($check.Name)"
+        Write-AIMessage "  check: $($check.Name)"
         $failOnOutput = $check.ContainsKey('FailOnOutput') -and $check.FailOnOutput
         try {
             $program = Resolve-AICommand -Name $check.Command[0]
@@ -1040,7 +1071,7 @@ function Invoke-AIReviewGate {
     $work = Join-Path ([IO.Path]::GetTempPath()) ("ai-review-" + [guid]::NewGuid().ToString('N'))
     $null = New-Item -ItemType Directory -Path $work
     try {
-        Write-Host "Checking changeset $($Changeset.Id)"
+        Write-AIMessage "Checking changeset $($Changeset.Id)"
         $checks = @(Invoke-AICheck -Settings $Settings -Changeset $Changeset -Directory $snapshot)
         $failed = @($checks | Where-Object { -not $_.Passed })
         if ($failed.Count -gt 0) {
@@ -1057,7 +1088,7 @@ function Invoke-AIReviewGate {
         $review = $null
         $failure = $null
         for ($attempt = 1; $attempt -le $Settings.Codex.MaxAttempts -and -not $review; $attempt++) {
-            Write-Host "Requesting Codex review (attempt $attempt of $($Settings.Codex.MaxAttempts))"
+            Write-AIMessage "Requesting Codex review (attempt $attempt of $($Settings.Codex.MaxAttempts))"
             Remove-Item -LiteralPath $output -Force -ErrorAction SilentlyContinue
             $started = [DateTime]::UtcNow
             $run = Invoke-AIProcess -FilePath $codex -ArgumentList $arguments -InputText $prompt -WorkingDirectory $snapshot -TimeoutSeconds $Settings.Codex.TimeoutSeconds -Agent
@@ -1129,11 +1160,11 @@ function Write-AIReview {
         [PSCustomObject]$Record
     )
     $status = if ($Record.approved) { 'APPROVED' } else { 'REJECTED' }
-    Write-Host "Codex review: $status ($($Record.changeset))"
-    Write-Host "  $($Record.summary)"
+    Write-AIMessage "Codex review: $status ($($Record.changeset))"
+    Write-AIMessage "  $($Record.summary)"
     foreach ($finding in @($Record.findings)) {
-        Write-Host ("  [{0}] {1}:{2} {3}" -f $finding.severity.ToUpperInvariant(), $finding.file, $finding.line, $finding.title)
-        Write-Host "      Impact: $($finding.impact)"
-        Write-Host "      Fix:    $($finding.remediation)"
+        Write-AIMessage ("  [{0}] {1}:{2} {3}" -f $finding.severity.ToUpperInvariant(), $finding.file, $finding.line, $finding.title)
+        Write-AIMessage "      Impact: $($finding.impact)"
+        Write-AIMessage "      Fix:    $($finding.remediation)"
     }
 }

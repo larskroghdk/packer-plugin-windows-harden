@@ -63,7 +63,7 @@ BeforeAll {
         [PSCustomObject]@{ ExitCode = $LASTEXITCODE; Output = $output }
     }
 
-    function New-TestRepository {
+    function Initialize-TestRepository {
         <#
         .SYNOPSIS
             Creates a repository with the workflow scripts, hooks and test settings.
@@ -75,7 +75,7 @@ BeforeAll {
             The Codex command name in the settings.
 
         .EXAMPLE
-            New-TestRepository
+            Initialize-TestRepository
 
         .NOTES
             Author  : Lars Krogh
@@ -119,7 +119,7 @@ BeforeAll {
         $env:FAKE_AGENT_LOG = $log
     }
 
-    function Set-StagedChange {
+    function Add-StagedChange {
         <#
         .SYNOPSIS
             Writes a file in the test repository and stages it.
@@ -134,7 +134,7 @@ BeforeAll {
             The file content.
 
         .EXAMPLE
-            Set-StagedChange -Name main.txt -Content 'changed'
+            Add-StagedChange -Name main.txt -Content 'changed'
 
         .NOTES
             Author  : Lars Krogh
@@ -177,7 +177,7 @@ BeforeAll {
         if (-not (Test-Path -LiteralPath $log)) {
             return , @()
         }
-        Write-Output -NoEnumerate @(Get-Content -LiteralPath $log | Where-Object { $_ -like "$Agent *" -and $_ -notlike '* --version' -and $_ -notlike '* login status' })
+        Write-Output -NoEnumerate -InputObject @(Get-Content -LiteralPath $log | Where-Object { $_ -like "$Agent *" -and $_ -notlike '* --version' -and $_ -notlike '* login status' })
     }
 
     function Invoke-Script {
@@ -221,11 +221,11 @@ AfterAll {
 
 Describe 'Pre-commit Codex gate' {
     BeforeEach {
-        New-TestRepository
+        Initialize-TestRepository
         $env:FAKE_CODEX_MODE = 'approve'
     }
     It 'allows a commit that Codex approves and reviews it in a read-only sandbox' {
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $result = Invoke-Git commit -m 'approved change'
         $result.ExitCode | Should -Be 0 -Because $result.Output
         $result.Output | Should -Match 'Commit allowed'
@@ -236,7 +236,7 @@ Describe 'Pre-commit Codex gate' {
     }
     It 'blocks a commit that Codex rejects and shows the findings' {
         $env:FAKE_CODEX_MODE = 'reject'
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $result = Invoke-Git commit -m 'rejected change'
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match 'REJECTED'
@@ -245,7 +245,7 @@ Describe 'Pre-commit Codex gate' {
     }
     It 'blocks when Codex approves despite a high finding' {
         $env:FAKE_CODEX_MODE = 'approve-with-high'
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         (Invoke-Git commit -m 'policy').ExitCode | Should -Not -Be 0
     }
     It 'fails closed when Codex <Mode>' -ForEach @(
@@ -253,7 +253,7 @@ Describe 'Pre-commit Codex gate' {
         @{ Mode = 'malformed'; Message = 'unknown verdict' }
     ) {
         $env:FAKE_CODEX_MODE = $Mode
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $result = Invoke-Git commit -m 'unreviewed'
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match $Message
@@ -261,45 +261,45 @@ Describe 'Pre-commit Codex gate' {
     }
     It 'fails closed when Codex times out' {
         $env:FAKE_CODEX_MODE = 'hang'
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $result = Invoke-Git commit -m 'timeout'
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match 'timed out'
     }
     It 'blocks the commit when Codex is not installed' {
-        New-TestRepository -CodexCommand 'codex-not-installed'
-        Set-StagedChange -Name 'main.txt'
+        Initialize-TestRepository -CodexCommand 'codex-not-installed'
+        Add-StagedChange -Name 'main.txt'
         $result = Invoke-Git commit -m 'no reviewer'
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match 'codex-not-installed is not installed'
     }
     It 'runs the checks first and does not ask Codex when they fail' {
-        Set-StagedChange -Name 'FAIL'
+        Add-StagedChange -Name 'FAIL'
         $result = Invoke-Git commit -m 'failing check'
         $result.ExitCode | Should -Not -Be 0
         $result.Output | Should -Match "Check 'fail marker' failed"
         (Get-AgentCall -Agent codex).Count | Should -Be 0
     }
     It 'reviews the staged content, not unstaged edits' {
-        Set-StagedChange -Name 'main.txt' -Content 'staged'
+        Add-StagedChange -Name 'main.txt' -Content 'staged'
         Set-Content -LiteralPath (Join-Path $repo 'FAIL') -Value 'untracked'
         (Invoke-Git commit -m 'staged only').ExitCode | Should -Be 0
     }
     It 'reuses an approval only for the identical changeset' {
-        Set-StagedChange -Name 'main.txt' -Content 'first'
+        Add-StagedChange -Name 'main.txt' -Content 'first'
         (Invoke-Script Invoke-CodexReview.ps1).ExitCode | Should -Be 0
         $env:FAKE_CODEX_MODE = 'fail'
         (Invoke-Script Invoke-CodexReview.ps1).Output | Should -Match 'already approved'
-        Set-StagedChange -Name 'main.txt' -Content 'second'
+        Add-StagedChange -Name 'main.txt' -Content 'second'
         $result = Invoke-Git commit -m 'changed after approval'
         $result.ExitCode | Should -Not -Be 0
         (Get-AgentCall -Agent codex).Count | Should -Be 2
-        Set-StagedChange -Name 'main.txt' -Content 'first'
+        Add-StagedChange -Name 'main.txt' -Content 'first'
         (Invoke-Git commit -m 'approved content').ExitCode | Should -Be 0
         (Get-AgentCall -Agent codex).Count | Should -Be 2
     }
     It 'refuses to run when started by an agent process' {
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $env:AI_AGENT_ACTIVE = '1'
         try {
             $result = Invoke-Git commit -m 'nested'
@@ -315,7 +315,7 @@ Describe 'Pre-commit Codex gate' {
         . (Join-Path $repo 'scripts/ai/AgentTools.ps1')
         $lock = Enter-AIWriteLock -RepositoryRoot $repo
         try {
-            Set-StagedChange -Name 'main.txt'
+            Add-StagedChange -Name 'main.txt'
             $result = Invoke-Git commit -m 'during copilot'
         }
         finally {
@@ -342,11 +342,11 @@ Describe 'Process runner' {
 
 Describe 'Pre-push verification' {
     BeforeEach {
-        New-TestRepository
+        Initialize-TestRepository
         $env:FAKE_CODEX_MODE = 'approve'
     }
     It 'blocks a push of a commit made without review, and allows it after a review' {
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $null = Invoke-Git commit -q --no-verify -m 'skipped hook'
         $blocked = Invoke-Git push origin main
         $blocked.ExitCode | Should -Not -Be 0
@@ -357,18 +357,29 @@ Describe 'Pre-push verification' {
         $allowed.Output | Should -Match 'every outgoing commit is approved'
     }
     It 'allows a push of an amended commit when the commit and the amendment were both approved' {
-        Set-StagedChange -Name 'main.txt' -Content 'first'
+        Add-StagedChange -Name 'main.txt' -Content 'first'
         (Invoke-Git commit -q -m 'first').ExitCode | Should -Be 0
-        Set-StagedChange -Name 'main.txt' -Content 'amended'
+        Add-StagedChange -Name 'main.txt' -Content 'amended'
         (Invoke-Git commit -q --amend -m 'amended').ExitCode | Should -Be 0
         $pushed = Invoke-Git push origin main
         $pushed.ExitCode | Should -Be 0 -Because $pushed.Output
         (Get-AgentCall -Agent codex).Count | Should -Be 2
     }
+    It 'ignores malformed unrelated review records' {
+        $reviews = Join-Path $repo '.git/ai/reviews'
+        $null = New-Item -ItemType Directory -Force -Path $reviews
+        Set-Content -LiteralPath (Join-Path $reviews 'null.json') -Value 'null'
+        Set-Content -LiteralPath (Join-Path $reviews 'broken.json') -Value '{ not json'
+        Set-Content -LiteralPath (Join-Path $reviews 'a-b.json') -Value '{"changeset":"a-b","base_tree":"a","tree":"b"}'
+        Add-StagedChange -Name 'main.txt'
+        (Invoke-Git commit -q -m 'reviewed').ExitCode | Should -Be 0
+        $pushed = Invoke-Git push origin main
+        $pushed.ExitCode | Should -Be 0 -Because $pushed.Output
+    }
     It 'blocks a push of an amended commit when the original commit was not reviewed' {
-        Set-StagedChange -Name 'main.txt' -Content 'first'
+        Add-StagedChange -Name 'main.txt' -Content 'first'
         $null = Invoke-Git commit -q --no-verify -m 'first'
-        Set-StagedChange -Name 'main.txt' -Content 'amended'
+        Add-StagedChange -Name 'main.txt' -Content 'amended'
         (Invoke-Git commit -q --amend -m 'amended').ExitCode | Should -Be 0
         $blocked = Invoke-Git push origin main
         $blocked.ExitCode | Should -Not -Be 0
@@ -377,7 +388,7 @@ Describe 'Pre-push verification' {
     It 'blocks a push of a new branch with a commit whose review was rejected' {
         $null = Invoke-Git switch -q -c feature
         $env:FAKE_CODEX_MODE = 'reject'
-        Set-StagedChange -Name 'main.txt'
+        Add-StagedChange -Name 'main.txt'
         $null = Invoke-Git commit -q --no-verify -m 'rejected'
         $null = Invoke-Script Invoke-CodexReview.ps1 -Commit HEAD
         (Invoke-Git push origin feature).ExitCode | Should -Not -Be 0
@@ -386,7 +397,7 @@ Describe 'Pre-push verification' {
 
 Describe 'Gemini research' {
     BeforeEach {
-        New-TestRepository
+        Initialize-TestRepository
         $env:FAKE_GEMINI_MODE = 'answer'
     }
     It 'runs read-only in plan mode with JSON output, reports cost and caches the answer' {
@@ -427,7 +438,7 @@ Describe 'Gemini research' {
 
 Describe 'Copilot maintenance' {
     BeforeEach {
-        New-TestRepository
+        Initialize-TestRepository
     }
     It 'allows documentation changes and passes the write and deny rules' {
         $env:FAKE_COPILOT_MODE = 'docs'
@@ -456,7 +467,7 @@ Describe 'Copilot maintenance' {
 
 Describe 'Environment check' {
     BeforeEach {
-        New-TestRepository
+        Initialize-TestRepository
     }
     It 'reports the hooks and the fake agents' {
         $result = Invoke-Script Test-AgentEnvironment.ps1
