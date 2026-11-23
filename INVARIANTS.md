@@ -44,7 +44,7 @@ Hard constraints. A change that breaks one of these is wrong even if tests pass.
 
 ## Scope
 
-- **I13** **Only supported, in-lifecycle releases with an implemented baseline are hardened.** Domain controllers, LTSC editions, end-of-support releases and unknown builds are rejected.
+- **I13** **Only supported, in-lifecycle releases with an implemented baseline are hardened.** Domain controllers, end-of-support releases, unknown builds and client LTSC editions on a build without a known LTSC release are rejected.
   Enforced by: `facts.Classify` and `Catalog.Select`, called from `run.selectBaseline`; `TestClassify`, `TestCatalogSelect`.
 
 - **I14** **Only computer configuration below HKLM is configured.** User Configuration GPOs are excluded components.

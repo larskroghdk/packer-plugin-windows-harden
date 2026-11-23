@@ -108,10 +108,11 @@ func TestUsesUnencryptedTransport(t *testing.T) {
 }
 
 // TestClassify checks the lifecycle status of each supported, retired and
-// rejected release, including the last day of support.
+// rejected release, including the last day of support of the general
+// availability and Long-Term Servicing Channel lifecycles.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func TestClassify(t *testing.T) {
 	now := date("2026-11-16")
 	tests := []struct {
@@ -128,7 +129,11 @@ func TestClassify(t *testing.T) {
 		{"win11 25h2 pro", OS{ProductType: 1, Build: 26200, EditionID: "Professional"}, StatusSupported},
 		{"win11 23h2 enterprise", OS{ProductType: 1, Build: 22631, EditionID: "Enterprise"}, StatusEndOfSupport},
 		{"win10 22h2", OS{ProductType: 1, Build: 19045, EditionID: "Enterprise"}, StatusEndOfSupport},
-		{"ltsc 2024", OS{ProductType: 1, Build: 26100, EditionID: "EnterpriseS"}, StatusUnsupportedEdition},
+		{"enterprise ltsc 2024", OS{ProductType: 1, Build: 26100, EditionID: "EnterpriseS"}, StatusSupported},
+		{"enterprise n ltsc 2024", OS{ProductType: 1, Build: 26100, EditionID: "EnterpriseSN"}, StatusSupported},
+		{"iot enterprise ltsc 2024", OS{ProductType: 1, Build: 26100, EditionID: "IoTEnterpriseS"}, StatusSupported},
+		{"enterprise ltsc 2021", OS{ProductType: 1, Build: 19044, EditionID: "EnterpriseS"}, StatusUnsupportedEdition},
+		{"ltsc edition on a non-ltsc build", OS{ProductType: 1, Build: 26200, EditionID: "EnterpriseS"}, StatusUnsupportedEdition},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -143,6 +148,22 @@ func TestClassify(t *testing.T) {
 	}
 	if got := Classify(OS{ProductType: 1, Build: 26100, EditionID: "Enterprise"}, date("2027-10-12").Add(12*time.Hour)); got.Status != StatusSupported {
 		t.Errorf("last day of support: %s", got.Status)
+	}
+	ltsc := []struct {
+		edition string
+		lastDay string
+	}{
+		{"EnterpriseS", "2029-10-09"},
+		{"IoTEnterpriseS", "2034-10-10"},
+	}
+	for _, tc := range ltsc {
+		last := date(tc.lastDay).Add(12 * time.Hour)
+		if got := Classify(OS{ProductType: 1, Build: 26100, EditionID: tc.edition}, last); got.Status != StatusSupported {
+			t.Errorf("%s on its last day of support: %s", tc.edition, got.Status)
+		}
+		if got := Classify(OS{ProductType: 1, Build: 26100, EditionID: tc.edition}, last.Add(24*time.Hour)); got.Status != StatusEndOfSupport {
+			t.Errorf("%s after its last day of support: %s", tc.edition, got.Status)
+		}
 	}
 }
 

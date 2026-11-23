@@ -73,25 +73,33 @@ var enterpriseEditions = map[string]bool{
 	"serverrdsh":    true,
 }
 
-var ltscEditions = map[string]bool{
-	"enterprises": true, "enterprisesn": true,
-	"iotenterprises": true, "iotenterprisesk": true,
+const (
+	ltscEnterprise = "enterprise"
+	ltscIoT        = "iot"
+)
+
+var ltscEditions = map[string]string{
+	"enterprises": ltscEnterprise, "enterprisesn": ltscEnterprise,
+	"iotenterprises": ltscIoT, "iotenterprisesk": ltscIoT,
 }
 
-// isLTSC reports whether edition is a Long-Term Servicing Channel edition.
-//
-// Author: Lars Krogh
-// Version: 1.0.0
-func isLTSC(edition string) bool { return ltscEditions[strings.ToLower(edition)] }
+var ltscReleases = map[int]map[string]Release{
+	26100: {
+		ltscEnterprise: {"Windows 11 Enterprise LTSC 2024", date("2029-10-09")},
+		ltscIoT:        {"Windows 11 IoT Enterprise LTSC 2024", date("2034-10-10")},
+	},
+}
 
 // Classify decides whether the plugin may harden the OS at time now. Domain
-// controllers, LTSC editions, unknown builds and releases past end of support
-// are rejected. Client releases use the Enterprise and Education lifecycle
-// for those editions and the consumer lifecycle otherwise. Classify does not
-// check whether a baseline exists for the release.
+// controllers, unknown builds and releases past end of support are rejected.
+// Client releases use the Enterprise and Education lifecycle for those
+// editions and the consumer lifecycle otherwise. Client Long-Term Servicing
+// Channel editions use the fixed lifecycle of their LTSC release, and are
+// rejected on a build without a known LTSC release. Classify does not check
+// whether a baseline exists for the release.
 //
 // Author: Lars Krogh
-// Version: 1.0.0
+// Version: 1.1.0
 func Classify(o OS, now time.Time) Classification {
 	switch o.ProductType {
 	case ProductTypeDomainController:
@@ -103,16 +111,16 @@ func Classify(o OS, now time.Time) Classification {
 		}
 		return lifecycleStatus(r, now)
 	case ProductTypeWorkstation:
+		if kind, ok := ltscEditions[strings.ToLower(o.EditionID)]; ok {
+			r, ok := ltscReleases[o.Build][kind]
+			if !ok {
+				return Classification{Status: StatusUnsupportedEdition, Reason: fmt.Sprintf("edition %s on build %d is not a known Long-Term Servicing Channel release", o.EditionID, o.Build)}
+			}
+			return lifecycleStatus(r, now)
+		}
 		r, ok := clientReleases[o.Build]
 		if !ok {
 			return Classification{Status: StatusUnknownRelease, Reason: fmt.Sprintf("Windows client build %d is not a known release", o.Build)}
-		}
-		if isLTSC(o.EditionID) {
-			return Classification{
-				Release: Release{Name: r.name + " LTSC"},
-				Status:  StatusUnsupportedEdition,
-				Reason:  fmt.Sprintf("edition %s is a Long-Term Servicing Channel edition; no LTSC-specific baseline is implemented", o.EditionID),
-			}
 		}
 		endOfSupport := r.consumer
 		if enterpriseEditions[strings.ToLower(o.EditionID)] {

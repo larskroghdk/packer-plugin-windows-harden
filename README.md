@@ -20,12 +20,13 @@ Workgroup machines, the usual state of a Packer build VM, are the primary target
 | `ws2022` | Windows Server 2022, workgroup or member server | 20348 |
 | `ws2025-2602` | Windows Server 2025, workgroup or member server | 26100 |
 | `win11-24h2` | Windows 11 24H2: Enterprise, Enterprise multi-session, Education and IoT Enterprise only, because Home and Pro reached end of updates on 2026-10-13 | 26100 |
+| `win11-24h2` | Windows 11 Enterprise LTSC 2024 (until 2029-10-09) and IoT Enterprise LTSC 2024 (until 2034-10-10), which Microsoft lists as equivalent to 24H2 | 26100 |
 | `win11-25h2` | Windows 11 25H2 | 26200 |
 | `win11-26h2` | Windows 11 26H2 | 26300 |
 
-A release is hardened only until its end of updates. The dates are in [lifecycle.go](internal/facts/lifecycle.go) and follow [Windows 11 release information](https://learn.microsoft.com/windows/release-health/windows11-release-information) and the Windows Server lifecycle.
+A release is hardened only until its end of updates. The dates are in [lifecycle.go](internal/facts/lifecycle.go) and follow [Windows 11 release information](https://learn.microsoft.com/windows/release-health/windows11-release-information), [supported versions of Windows client](https://learn.microsoft.com/windows/release-health/supported-versions-windows-client) for LTSC, and the Windows Server lifecycle.
 
-🚫 Domain controllers, LTSC editions, releases past end of updates, and releases without a baseline here (such as Windows Server 2016 and Windows 11 26H1) are rejected.
+🚫 Domain controllers, releases past end of updates, and releases without a baseline here (such as Windows Server 2016, Windows 11 26H1 and Windows 10 Enterprise LTSC 2021) are rejected.
 
 ## 🚀 Usage
 
