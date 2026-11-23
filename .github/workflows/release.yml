@@ -25,8 +25,8 @@ jobs:
           go-version-file: go.mod
       - name: Determine Packer plugin API version
         run: |
-          go build -o bin/packer-plugin-windows-harden .
-          API_VERSION=$(./bin/packer-plugin-windows-harden describe | jq -er '.api_version | select(type == "string" and length > 0)')
+          go build -o "$RUNNER_TEMP/packer-plugin-windows-harden" .
+          API_VERSION=$("$RUNNER_TEMP/packer-plugin-windows-harden" describe | jq -er '.api_version | select(type == "string" and length > 0)')
           echo "API_VERSION=$API_VERSION" >> "$GITHUB_ENV"
       - name: Import GPG key
         id: import_gpg
