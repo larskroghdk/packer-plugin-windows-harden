@@ -24,7 +24,6 @@
   "powershell.codeFormatting.useCorrectCasing": true,
   "powershell.scriptAnalysis.enable": true,
   "powershell.pester.useLegacyCodeLens": false,
-  "pester.testFilePath": ["test/pester/**/*.Tests.ps1"],
   "[markdown]": {
     "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
   },
