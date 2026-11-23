@@ -1,23 +1,26 @@
-GOPATH             := $(shell go env GOPATH | tr '\\' '/')
-GORELEASER_VERSION := 2.18.2
+GOPATH              := $(shell go env GOPATH | tr '\\' '/')
+GORELEASER_VERSION  := 2.18.2
 STATICCHECK_VERSION := 2025.1.1
 GOVULNCHECK_VERSION := 1.10.0
-PACKER_SDC_VERSION := $(shell go list -m -f '{{.Version}}' github.com/hashicorp/packer-plugin-sdk)
-GORELEASER         ?= $(GOPATH)/bin/goreleaser
-STATICCHECK        ?= $(GOPATH)/bin/staticcheck
-GOVULNCHECK        ?= $(GOPATH)/bin/govulncheck
-PACKER_SDC         ?= $(GOPATH)/bin/packer-sdc
-PWSH               ?= pwsh
-PESTER_SHELL       ?= powershell.exe
-PACKER             ?= packer
-DOWNLOADS          ?=
-API_VERSION         = $(shell go run . describe 2>/dev/null | jq -r .api_version)
+ACTIONLINT_VERSION  := 1.7.11
+PACKER_SDC_VERSION  := $(shell go list -m -f '{{.Version}}' github.com/hashicorp/packer-plugin-sdk)
+GORELEASER          ?= $(GOPATH)/bin/goreleaser
+STATICCHECK         ?= $(GOPATH)/bin/staticcheck
+GOVULNCHECK         ?= $(GOPATH)/bin/govulncheck
+PACKER_SDC          ?= $(GOPATH)/bin/packer-sdc
+PWSH                ?= pwsh
+PESTER_SHELL        ?= powershell.exe
+PACKER              ?= packer
+DOWNLOADS           ?=
+API_VERSION          = $(shell go run . describe 2>/dev/null | jq -r .api_version)
 
-.PHONY: check lint fmt-check doccheck pslint hclfmt typecheck vulncheck test test-go test-ps fmt generate generate-check baselines init build release-snapshot release clean
+.PHONY: check lint fmt-check doccheck pslint hclfmt actionlint typecheck vulncheck \
+	test test-go test-ps test-ai fmt generate generate-check baselines init \
+	build release-snapshot release clean
 
 check: lint typecheck vulncheck test
 
-lint: fmt-check doccheck pslint hclfmt $(STATICCHECK)
+lint: fmt-check doccheck pslint hclfmt actionlint $(STATICCHECK)
 	$(STATICCHECK) ./...
 
 fmt-check:
@@ -28,25 +31,31 @@ doccheck:
 	@sh ./psdoccheck.sh
 
 pslint:
-	$(PWSH) -NoProfile -Command '$$ErrorActionPreference = "Stop"; $$r = "guest/scripts", "test/pester" | ForEach-Object { Invoke-ScriptAnalyzer -Path $$_ -Recurse -Severity Error }; $$r; if ($$r) { exit 1 }'
+	$(PWSH) -NoProfile -Command '$$ErrorActionPreference = "Stop"; $$r = "guest/scripts", "test", "scripts" | ForEach-Object { Invoke-ScriptAnalyzer -Path $$_ -Recurse -Severity Error }; $$r; if ($$r) { exit 1 }'
 
 hclfmt:
 	$(PACKER) fmt -check -recursive examples
+
+actionlint:
+	go run github.com/rhysd/actionlint/cmd/actionlint@v$(ACTIONLINT_VERSION)
 
 typecheck:
 	go build ./...
 	go vet ./...
 
-test: test-go test-ps
+vulncheck: $(GOVULNCHECK)
+	$(GOVULNCHECK) ./...
+
+test: test-go test-ps test-ai
 
 test-go:
 	go test ./...
 
-vulncheck: $(GOVULNCHECK)
-	$(GOVULNCHECK) ./...
-
 test-ps:
 	$(PESTER_SHELL) -NoProfile -ExecutionPolicy Bypass -Command '$$c = New-PesterConfiguration; $$c.Run.Path = "test/pester"; $$c.Run.Exit = $$true; $$c.Output.Verbosity = "Detailed"; Invoke-Pester -Configuration $$c'
+
+test-ai:
+	$(PWSH) -NoProfile -Command 'Import-Module Pester -MinimumVersion 5.6.1; $$c = New-PesterConfiguration; $$c.Run.Path = "test/ai"; $$c.Run.Exit = $$true; $$c.Output.Verbosity = "Detailed"; Invoke-Pester -Configuration $$c'
 
 fmt:
 	gofmt -w .

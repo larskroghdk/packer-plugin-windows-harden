@@ -1,0 +1,427 @@
+#Requires -Version 7.2
+
+<#
+.SYNOPSIS
+    Pester tests for the agent workflow scripts and Git hooks.
+
+.DESCRIPTION
+    Each test builds a throwaway Git repository in TestDrive with a copy of scripts/ai and .githooks, settings with one cheap check, and FakeAgent.ps1 standing in for codex, gemini and copilot on PATH.
+    The tests run real git commits and pushes against a local bare remote, so the hooks, review records, approval policy and failure handling are exercised end to end without network access or real agent calls.
+
+.EXAMPLE
+    Invoke-Pester -Path test/ai
+
+.NOTES
+    Author  : Lars Krogh
+    Version : 1.0.0
+#>
+
+
+BeforeAll {
+    $script:sourceRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
+    $script:fakeAgent = Join-Path $PSScriptRoot 'FakeAgent.ps1'
+    $script:pwshPath = (Get-Process -Id $PID).Path
+    $script:savedPath = $env:PATH
+    Remove-Item Env:AI_AGENT_ACTIVE -ErrorAction SilentlyContinue
+    $script:fakeBin = Join-Path $TestDrive 'bin'
+    $null = New-Item -ItemType Directory -Path $fakeBin
+    foreach ($name in 'codex', 'gemini', 'copilot') {
+        if ($IsWindows) {
+            Set-Content -LiteralPath (Join-Path $fakeBin "$name.cmd") -Value "@`"$pwshPath`" -NoProfile -NonInteractive -File `"$fakeAgent`" $name %*" -Encoding ascii
+        }
+        else {
+            $path = Join-Path $fakeBin $name
+            Set-Content -LiteralPath $path -Value "#!/bin/sh`nexec `"$pwshPath`" -NoProfile -NonInteractive -File `"$fakeAgent`" $name `"`$@`"" -Encoding ascii
+            & chmod +x $path
+        }
+    }
+    $env:PATH = $fakeBin + [IO.Path]::PathSeparator + $env:PATH
+
+    function Invoke-Git {
+        <#
+        .SYNOPSIS
+            Runs git in the test repository and returns its output and exit code.
+
+        .DESCRIPTION
+            Combines standard output and error so hook messages can be asserted.
+
+        .PARAMETER GitArguments
+            The git arguments, passed unbound so that options such as -A reach git.
+
+        .EXAMPLE
+            Invoke-Git commit -m 'x'
+
+        .OUTPUTS
+            System.Management.Automation.PSCustomObject with ExitCode and Output.
+
+        .NOTES
+            Author  : Lars Krogh
+            Version : 1.0.0
+        #>
+        $gitArguments = @($args)
+        $output = & git -C $script:repo @gitArguments 2>&1 | Out-String
+        [PSCustomObject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+    }
+
+    function New-TestRepository {
+        <#
+        .SYNOPSIS
+            Creates a repository with the workflow scripts, hooks and test settings.
+
+        .DESCRIPTION
+            Copies scripts/ai and .githooks from the source tree, writes settings that use the fake agents and one check that fails when a file named FAIL exists, makes an initial commit without hooks, installs the hooks and adds a bare remote.
+
+        .PARAMETER CodexCommand
+            The Codex command name in the settings.
+
+        .EXAMPLE
+            New-TestRepository
+
+        .NOTES
+            Author  : Lars Krogh
+            Version : 1.0.0
+        #>
+        param(
+            [string]$CodexCommand = 'codex'
+        )
+        $script:repo = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        $remote = "$repo-remote.git"
+        $null = New-Item -ItemType Directory -Path (Join-Path $repo 'scripts/ai'), (Join-Path $repo '.githooks')
+        Copy-Item -Path (Join-Path $sourceRoot 'scripts/ai/*') -Destination (Join-Path $repo 'scripts/ai')
+        Copy-Item -Path (Join-Path $sourceRoot '.githooks/*') -Destination (Join-Path $repo '.githooks')
+        $settings = @"
+@{
+    Codex = @{ Command = '$CodexCommand'; Model = ''; TimeoutSeconds = 20; MaxAttempts = 1; MaxDiffBytes = 100000; BlockingSeverities = @('critical', 'high') }
+    Gemini = @{ Command = 'gemini'; Model = ''; TimeoutSeconds = 30; MaxAttempts = 1; CacheDays = 7; InputUsdPerMillionTokens = 1; OutputUsdPerMillionTokens = 10 }
+    Copilot = @{ Command = 'copilot'; Model = ''; TimeoutSeconds = 30; MaxAiCredits = 0; WriteRules = @('*.md', 'docs/**'); AllowedPathPatterns = @('*.md', 'docs/*'); DenyTools = @('shell(git commit)', 'shell(git push)') }
+    CheckTimeoutSeconds = 60
+    Checks = @(
+        @{ Name = 'fail marker'; Paths = @('*'); Command = @('pwsh', '-NoProfile', '-Command', 'if (Test-Path FAIL) { exit 1 }') }
+    )
+}
+"@
+        Set-Content -LiteralPath (Join-Path $repo 'scripts/ai/settings.psd1') -Value $settings
+        Set-Content -LiteralPath (Join-Path $repo 'main.txt') -Value 'initial'
+        $null = & git init -q -b main $repo
+        $null = Invoke-Git config user.name 'Test'
+        $null = Invoke-Git config user.email 'test@example.invalid'
+        $null = Invoke-Git config core.autocrlf false
+        $null = Invoke-Git add -A
+        $null = Invoke-Git commit -q --no-verify -m 'initial'
+        $null = Invoke-Git config core.hooksPath .githooks
+        $null = & git init -q --bare $remote
+        $null = Invoke-Git remote add origin $remote
+        $null = Invoke-Git push -q --no-verify origin main
+        $script:log = Join-Path $TestDrive "$([guid]::NewGuid().ToString('N')).log"
+        $env:FAKE_AGENT_LOG = $log
+    }
+
+    function Set-StagedChange {
+        <#
+        .SYNOPSIS
+            Writes a file in the test repository and stages it.
+
+        .DESCRIPTION
+            Creates or replaces the file and runs git add for it.
+
+        .PARAMETER Name
+            The file name.
+
+        .PARAMETER Content
+            The file content.
+
+        .EXAMPLE
+            Set-StagedChange -Name main.txt -Content 'changed'
+
+        .NOTES
+            Author  : Lars Krogh
+            Version : 1.0.0
+        #>
+        param(
+            [Parameter(Mandatory)]
+            [string]$Name,
+            [string]$Content = 'changed'
+        )
+        Set-Content -LiteralPath (Join-Path $repo $Name) -Value $Content
+        $null = Invoke-Git add -- $Name
+    }
+
+    function Get-AgentCall {
+        <#
+        .SYNOPSIS
+            Returns the logged calls of one fake agent.
+
+        .DESCRIPTION
+            Reads FAKE_AGENT_LOG and keeps the lines of the agent, ignoring --version probes.
+
+        .PARAMETER Agent
+            codex, gemini or copilot.
+
+        .EXAMPLE
+            Get-AgentCall -Agent codex
+
+        .OUTPUTS
+            System.String
+
+        .NOTES
+            Author  : Lars Krogh
+            Version : 1.0.0
+        #>
+        param(
+            [Parameter(Mandatory)]
+            [string]$Agent
+        )
+        if (-not (Test-Path -LiteralPath $log)) {
+            return , @()
+        }
+        Write-Output -NoEnumerate @(Get-Content -LiteralPath $log | Where-Object { $_ -like "$Agent *" -and $_ -notlike '* --version' -and $_ -notlike '* login status' })
+    }
+
+    function Invoke-Script {
+        <#
+        .SYNOPSIS
+            Runs a workflow script in the test repository.
+
+        .DESCRIPTION
+            Starts a new pwsh process in the repository, as Claude or a hook would, and returns its exit code and output.
+
+        .PARAMETER ScriptArguments
+            The script file name in scripts/ai, followed by its arguments, passed unbound.
+
+        .EXAMPLE
+            Invoke-Script Invoke-CodexReview.ps1 -Commit HEAD
+
+        .OUTPUTS
+            System.Management.Automation.PSCustomObject with ExitCode and Output.
+
+        .NOTES
+            Author  : Lars Krogh
+            Version : 1.0.0
+        #>
+        $name = $args[0]
+        $scriptArguments = @($args | Select-Object -Skip 1)
+        Push-Location $repo
+        try {
+            $output = & $pwshPath -NoProfile -NonInteractive -File (Join-Path $repo "scripts/ai/$name") @scriptArguments 2>&1 | Out-String
+            [PSCustomObject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+        }
+        finally {
+            Pop-Location
+        }
+    }
+}
+
+AfterAll {
+    $env:PATH = $savedPath
+    Remove-Item Env:FAKE_AGENT_LOG, Env:FAKE_CODEX_MODE, Env:FAKE_GEMINI_MODE, Env:FAKE_COPILOT_MODE, Env:AI_AGENT_ACTIVE -ErrorAction SilentlyContinue
+}
+
+Describe 'Pre-commit Codex gate' {
+    BeforeEach {
+        New-TestRepository
+        $env:FAKE_CODEX_MODE = 'approve'
+    }
+    It 'allows a commit that Codex approves and reviews it in a read-only sandbox' {
+        Set-StagedChange -Name 'main.txt'
+        $result = Invoke-Git commit -m 'approved change'
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'Commit allowed'
+        $calls = Get-AgentCall -Agent codex
+        $calls.Count | Should -Be 1
+        $calls[0] | Should -Match 'exec --sandbox read-only --ephemeral'
+        (Invoke-Git log --oneline).Output | Should -Match 'approved change'
+    }
+    It 'blocks a commit that Codex rejects and shows the findings' {
+        $env:FAKE_CODEX_MODE = 'reject'
+        Set-StagedChange -Name 'main.txt'
+        $result = Invoke-Git commit -m 'rejected change'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'REJECTED'
+        $result.Output | Should -Match '\[HIGH\] main.txt:1 Fake defect'
+        (Invoke-Git log --oneline).Output | Should -Not -Match 'rejected change'
+    }
+    It 'blocks when Codex approves despite a high finding' {
+        $env:FAKE_CODEX_MODE = 'approve-with-high'
+        Set-StagedChange -Name 'main.txt'
+        (Invoke-Git commit -m 'policy').ExitCode | Should -Not -Be 0
+    }
+    It 'fails closed when Codex <Mode>' -ForEach @(
+        @{ Mode = 'fail'; Message = 'exited with code 1' }
+        @{ Mode = 'malformed'; Message = 'unknown verdict' }
+    ) {
+        $env:FAKE_CODEX_MODE = $Mode
+        Set-StagedChange -Name 'main.txt'
+        $result = Invoke-Git commit -m 'unreviewed'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match $Message
+        $result.Output | Should -Match 'not approved'
+    }
+    It 'fails closed when Codex times out' {
+        $env:FAKE_CODEX_MODE = 'hang'
+        Set-StagedChange -Name 'main.txt'
+        $result = Invoke-Git commit -m 'timeout'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'timed out'
+    }
+    It 'blocks the commit when Codex is not installed' {
+        New-TestRepository -CodexCommand 'codex-not-installed'
+        Set-StagedChange -Name 'main.txt'
+        $result = Invoke-Git commit -m 'no reviewer'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'codex-not-installed is not installed'
+    }
+    It 'runs the checks first and does not ask Codex when they fail' {
+        Set-StagedChange -Name 'FAIL'
+        $result = Invoke-Git commit -m 'failing check'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match "Check 'fail marker' failed"
+        (Get-AgentCall -Agent codex).Count | Should -Be 0
+    }
+    It 'reviews the staged content, not unstaged edits' {
+        Set-StagedChange -Name 'main.txt' -Content 'staged'
+        Set-Content -LiteralPath (Join-Path $repo 'FAIL') -Value 'untracked'
+        (Invoke-Git commit -m 'staged only').ExitCode | Should -Be 0
+    }
+    It 'reuses an approval only for the identical changeset' {
+        Set-StagedChange -Name 'main.txt' -Content 'first'
+        (Invoke-Script Invoke-CodexReview.ps1).ExitCode | Should -Be 0
+        $env:FAKE_CODEX_MODE = 'fail'
+        (Invoke-Script Invoke-CodexReview.ps1).Output | Should -Match 'already approved'
+        Set-StagedChange -Name 'main.txt' -Content 'second'
+        $result = Invoke-Git commit -m 'changed after approval'
+        $result.ExitCode | Should -Not -Be 0
+        (Get-AgentCall -Agent codex).Count | Should -Be 2
+        Set-StagedChange -Name 'main.txt' -Content 'first'
+        (Invoke-Git commit -m 'approved content').ExitCode | Should -Be 0
+        (Get-AgentCall -Agent codex).Count | Should -Be 2
+    }
+    It 'refuses to run when started by an agent process' {
+        Set-StagedChange -Name 'main.txt'
+        $env:AI_AGENT_ACTIVE = '1'
+        try {
+            $result = Invoke-Git commit -m 'nested'
+        }
+        finally {
+            Remove-Item Env:AI_AGENT_ACTIVE
+        }
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'started by an agent process'
+        (Get-AgentCall -Agent codex).Count | Should -Be 0
+    }
+    It 'refuses while another agent holds the write lock' {
+        . (Join-Path $repo 'scripts/ai/AgentTools.ps1')
+        $lock = Enter-AIWriteLock -RepositoryRoot $repo
+        try {
+            Set-StagedChange -Name 'main.txt'
+            $result = Invoke-Git commit -m 'during copilot'
+        }
+        finally {
+            $lock.Dispose()
+        }
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'Another agent is changing files'
+    }
+}
+
+Describe 'Pre-push verification' {
+    BeforeEach {
+        New-TestRepository
+        $env:FAKE_CODEX_MODE = 'approve'
+    }
+    It 'blocks a push of a commit made without review, and allows it after a review' {
+        Set-StagedChange -Name 'main.txt'
+        $null = Invoke-Git commit -q --no-verify -m 'skipped hook'
+        $blocked = Invoke-Git push origin main
+        $blocked.ExitCode | Should -Not -Be 0
+        $blocked.Output | Should -Match 'not approved'
+        (Invoke-Script Invoke-CodexReview.ps1 -Commit HEAD).ExitCode | Should -Be 0
+        $allowed = Invoke-Git push origin main
+        $allowed.ExitCode | Should -Be 0 -Because $allowed.Output
+        $allowed.Output | Should -Match 'every outgoing commit is approved'
+    }
+    It 'blocks a push of a new branch with a commit whose review was rejected' {
+        $null = Invoke-Git switch -q -c feature
+        $env:FAKE_CODEX_MODE = 'reject'
+        Set-StagedChange -Name 'main.txt'
+        $null = Invoke-Git commit -q --no-verify -m 'rejected'
+        $null = Invoke-Script Invoke-CodexReview.ps1 -Commit HEAD
+        (Invoke-Git push origin feature).ExitCode | Should -Not -Be 0
+    }
+}
+
+Describe 'Gemini research' {
+    BeforeEach {
+        New-TestRepository
+        $env:FAKE_GEMINI_MODE = 'answer'
+    }
+    It 'runs read-only in plan mode with JSON output, reports cost and caches the answer' {
+        $first = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'How is WinRM protected?'
+        $first.ExitCode | Should -Be 0 -Because $first.Output
+        $first.Output | Should -Match 'Fake research answer'
+        $first.Output | Should -Match '1000 input and 250 output tokens'
+        $first.Output | Should -Match 'estimated USD 0.0035'
+        $calls = Get-AgentCall -Agent gemini
+        $calls.Count | Should -Be 1
+        $calls[0] | Should -Match '--approval-mode plan -o json'
+        $calls[0] | Should -Not -Match 'WinRM'
+        $second = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'How is WinRM protected?'
+        $second.Output | Should -Match 'Cached Gemini answer'
+        (Get-AgentCall -Agent gemini).Count | Should -Be 1
+    }
+    It 'fails when Gemini changes a file' {
+        $env:FAKE_GEMINI_MODE = 'modify'
+        $result = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'Anything'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'changed files during read-only research: gemini-was-here.txt'
+    }
+    It 'fails without an answer when Gemini reports an API error' {
+        $env:FAKE_GEMINI_MODE = 'fail'
+        $result = Invoke-Script Invoke-GeminiResearch.ps1 -Question 'Anything'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'API key not valid'
+    }
+}
+
+Describe 'Copilot maintenance' {
+    BeforeEach {
+        New-TestRepository
+    }
+    It 'allows documentation changes and passes the write and deny rules' {
+        $env:FAKE_COPILOT_MODE = 'docs'
+        $result = Invoke-Script Invoke-CopilotMaintenance.ps1 -Task 'Document the setup.'
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'Copilot changed: docs/fake.md'
+        $call = (Get-AgentCall -Agent copilot)[0]
+        $call | Should -Match '--allow-tool write\(docs/\*\*\)'
+        $call | Should -Match '--deny-tool shell\(git push\)'
+        $call | Should -Match '--no-ask-user'
+        $call | Should -Not -Match 'Document the setup'
+    }
+    It 'fails when Copilot changes a file outside its scope' {
+        $env:FAKE_COPILOT_MODE = 'outside'
+        $result = Invoke-Script Invoke-CopilotMaintenance.ps1 -Task 'Anything'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'outside its scope: main.txt'
+    }
+    It 'fails when Copilot commits' {
+        $env:FAKE_COPILOT_MODE = 'commit'
+        $result = Invoke-Script Invoke-CopilotMaintenance.ps1 -Task 'Anything'
+        $result.ExitCode | Should -Not -Be 0
+        $result.Output | Should -Match 'moved HEAD'
+    }
+}
+
+Describe 'Environment check' {
+    BeforeEach {
+        New-TestRepository
+    }
+    It 'reports the hooks and the fake agents' {
+        $result = Invoke-Script Test-AgentEnvironment.ps1
+        $result.ExitCode | Should -Be 0 -Because $result.Output
+        $result.Output | Should -Match 'codex fake 1.0.0'
+    }
+    It 'fails when the hooks are not installed' {
+        $null = Invoke-Git config --unset core.hooksPath
+        (Invoke-Script Test-AgentEnvironment.ps1).ExitCode | Should -Be 1
+    }
+}
