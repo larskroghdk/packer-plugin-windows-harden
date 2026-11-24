@@ -67,3 +67,5 @@ For a local smoke test, use [examples/local/Test-Local.ps1](examples/local/Test-
 📦 The [build workflow](.github/workflows/build.yml) checks generated configuration, runs `make check`, and uploads unsigned snapshot artifacts to the workflow run. Pushing a version tag such as `v0.1.0` starts the [release workflow](.github/workflows/release.yml), which builds plugin ZIPs for Linux, macOS, and Windows (amd64 and arm64) and publishes them to GitHub Releases with SHA-256 checksums and a GPG signature. Configure the repository Actions secrets `GPG_PRIVATE_KEY` (an ASCII-armored private signing key) and `GPG_PASSPHRASE` (its passphrase) before releasing. PowerShell Gallery is used only to install lint and test dependencies; nothing is published there.
 
 🤖 Contributor and agent guidance: [AGENTS.md](AGENTS.md) and [INVARIANTS.md](INVARIANTS.md). Task procedures: [update-baseline](.agents/skills/update-baseline/SKILL.md) and [add-protection-rule](.agents/skills/add-protection-rule/SKILL.md).
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), the [Code of Conduct](.github/CODE_OF_CONDUCT.md), and the [security policy](.github/SECURITY.md).

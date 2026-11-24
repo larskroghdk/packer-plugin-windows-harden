@@ -2,6 +2,8 @@
 
 🐛 Bug reports, baseline updates and protection rules are welcome. Open an issue before starting larger changes so we can agree on the approach.
 
+Participation is governed by the [Code of Conduct](.github/CODE_OF_CONDUCT.md). Report vulnerabilities privately by following [SECURITY.md](.github/SECURITY.md), not in issues.
+
 ## 🧰 Setup
 
 You need the Go patch version specified in `go.mod` or newer, `staticcheck`, `govulncheck`, Packer, `pwsh` with PSScriptAnalyzer and Pester 5, and Windows PowerShell 5.1 for the Pester run. `make init` installs the check and configuration-generation tools. `make check` includes a vulnerability scan that requires access to the Go vulnerability database.
